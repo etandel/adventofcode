@@ -100,6 +100,10 @@ class TestDeepCompression(unittest.TestCase):
     def setUp(self):
         self.comp = Compression()
 
+    def assert_parse_market_data(self, text, marker, element, remaining):
+        self.assertEqual(self.comp.parse_marker_data(text, marker),
+                         (element, remaining, self.comp.parse_regular))
+
     def test_parse_marker_data(self):
         text = '(2x2)BCD(2x2)EFG'
         marker = Marker(len(text) - 1, 3)
@@ -109,32 +113,33 @@ class TestDeepCompression(unittest.TestCase):
 
                            Element([Element('EF', 1)], 2)],
                           repeat=3)
+        self.assert_parse_market_data(text, marker, element, 'G')
 
-        expected = (element, 'G', self.comp.parse_regular)
-        self.assertEqual(self.comp.parse_marker_data(text, marker), expected)
+    def assert_parse_marker(self, text, element, remaining):
+        self.assertEqual(self.comp.parse_marker(text),
+                         (element, remaining, self.comp.parse_regular))
 
     def test_parse_marker(self):
-        expected = (Element([Element('abc', 1)], 51), 'd',
-                    self.comp.parse_regular)
-        self.assertEqual(self.comp.parse_marker('(3x51)abcd'), expected)
+        element = Element([Element('abc', 1)], 51)
+        self.assert_parse_marker('(3x51)abcd', element, 'd')
 
-        self.assertEqual(self.comp.parse_marker('(0x51)'),
-                         (Element([], 51), '', self.comp.parse_regular))
+        self.assert_parse_marker('(0x51)', Element([], 51), '')
 
-        expected = (Element([Element('ab', 1)], 51),
-                    '',
-                    self.comp.parse_regular)
-        self.assertEqual(self.comp.parse_marker('(2x51)ab'), expected)
+        element = Element([Element('ab', 1)], 51)
+        self.assert_parse_marker('(2x51)ab', element, '')
+
+    def assert_parse_regular(self, text, element, remaining):
+        self.assertEqual(self.comp.parse_regular(text),
+                         (element, remaining, self.comp.parse_marker))
 
     def test_parse_regular(self):
-        expected = (Element('abcd', 1), '(48x51)efg', self.comp.parse_marker)
-        self.assertEqual(self.comp.parse_regular('abcd(48x51)efg'), expected)
+        self.assert_parse_regular('abcd(48x51)efg',
+                                  Element('abcd', 1),
+                                  '(48x51)efg')
 
-        self.assertEqual(self.comp.parse_regular(''),
-                         (Element('', 1), '', self.comp.parse_marker))
+        self.assert_parse_regular('', Element('', 1), '')
 
-        self.assertEqual(self.comp.parse_regular('abcde'),
-                         (Element('abcde', 1), '', self.comp.parse_marker))
+        self.assert_parse_regular('abcde', Element('abcde', 1), '')
 
     def test_parse(self):
         text = 'abcd(7x15)(1x11)efg(3x3)hijklm'
