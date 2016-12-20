@@ -1,6 +1,6 @@
 import sys
 import unittest
-from compression_v2 import Compression
+from compression import Compression
 
 
 INPUT = open('input.txt')
