@@ -96,13 +96,26 @@ class TestElement(unittest.TestCase):
         self.assert_element(element, combined)
 
 
-class TestDeepCompression(unittest.TestCase):
-    def setUp(self):
-        self.comp = Compression()
-
+class CompressionTestCase(unittest.TestCase):
     def assert_parse_market_data(self, text, marker, element, remaining):
         self.assertEqual(self.comp.parse_marker_data(text, marker),
                          (element, remaining, self.comp.parse_regular))
+
+    def assert_parse_marker(self, text, element, remaining):
+        self.assertEqual(self.comp.parse_marker(text),
+                         (element, remaining, self.comp.parse_regular))
+
+    def assert_parse_regular(self, text, element, remaining):
+        self.assertEqual(self.comp.parse_regular(text),
+                         (element, remaining, self.comp.parse_marker))
+
+    def assert_decompress(self, text, expected):
+        self.assertEqual(self.comp.decompress(text), expected)
+
+
+class TestDeepCompression(CompressionTestCase):
+    def setUp(self):
+        self.comp = Compression()
 
     def test_parse_marker_data(self):
         text = '(2x2)BCD(2x2)EFG'
@@ -115,10 +128,6 @@ class TestDeepCompression(unittest.TestCase):
                           repeat=3)
         self.assert_parse_market_data(text, marker, element, 'G')
 
-    def assert_parse_marker(self, text, element, remaining):
-        self.assertEqual(self.comp.parse_marker(text),
-                         (element, remaining, self.comp.parse_regular))
-
     def test_parse_marker(self):
         element = Element([Element('abc', 1)], 51)
         self.assert_parse_marker('(3x51)abcd', element, 'd')
@@ -127,10 +136,6 @@ class TestDeepCompression(unittest.TestCase):
 
         element = Element([Element('ab', 1)], 51)
         self.assert_parse_marker('(2x51)ab', element, '')
-
-    def assert_parse_regular(self, text, element, remaining):
-        self.assertEqual(self.comp.parse_regular(text),
-                         (element, remaining, self.comp.parse_marker))
 
     def test_parse_regular(self):
         self.assert_parse_regular('abcd(48x51)efg',
@@ -150,9 +155,6 @@ class TestDeepCompression(unittest.TestCase):
                             Element('klm', 1)],
                            repeat=1)
         self.assertEqual(self.comp.parse(text), expected)
-
-    def assert_decompress(self, text, expected):
-        self.assertEqual(self.comp.decompress(text), expected)
 
     def test_decompress(self):
         self.assert_decompress('ADVENT', 'ADVENT')
