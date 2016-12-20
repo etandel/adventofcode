@@ -1,19 +1,10 @@
 import re
 import sys
 import unittest
+from operator import attrgetter
 
 
 INPUT = open('input.txt')
-
-
-class ConditionMet(Exception):
-    def __init__(self, bot):
-        self.bot = bot
-
-    def __repr__(self):
-        return repr(self.bot)
-
-    __str__ = __repr__
 
 
 class Target:
@@ -34,6 +25,7 @@ class Bot(Target):
         super(Bot, self).__init__(target_id)
         self.vals = []
         self.targets = []
+        self.the_one = False
 
     def receive_instruction(self, low_target, high_target):
         self.targets = [low_target, high_target]
@@ -42,7 +34,7 @@ class Bot(Target):
         self.vals.append(val)
         self.vals.sort()
         if self.vals == [17, 61]:
-            raise ConditionMet(self)
+            self.the_one = True
 
     def can_execute(self):
         return len(self.vals) == 2
@@ -58,8 +50,12 @@ class Bot(Target):
 
 
 class Bin(Target):
+    def __init__(self, target_id):
+        super(Bin, self).__init__(target_id)
+        self.vals = []
+
     def receive(self, val):
-        pass
+        self.vals.append(val)
 
 
 class TargetRepo:
@@ -72,6 +68,10 @@ class TargetRepo:
     @property
     def bots(self):
         return self.target_repos[Bot].values()
+
+    @property
+    def bins(self):
+        return self.target_repos[Bin].values()
 
     def get_repo(self, target_type):
         if isinstance(target_type, str):
@@ -122,22 +122,32 @@ def initialize_targets():
     return targets
 
 
+def go():
+    targets = initialize_targets()
+    to_execute = filter(Bot.can_execute, targets.bots)
+
+    while to_execute:
+        for bot in to_execute:
+            bot.execute()
+
+        to_execute = list(filter(Bot.can_execute, targets.bots))
+
+    return targets
+
+
 def part1():
-    try:
-        targets = initialize_targets()
-        to_execute = filter(Bot.can_execute, targets.bots)
-
-        while to_execute:
-            for bot in to_execute:
-                bot.execute()
-
-            to_execute = list(filter(Bot.can_execute, targets.bots))
-    except ConditionMet as e:
-        return e.bot.target_id
+    targets = go()
+    return next(filter(attrgetter('the_one'), targets.bots)).target_id
 
 
 def part2():
-    return None
+    targets = go()
+
+    prod = 1
+    for output in filter(lambda b: int(b.target_id) < 3, targets.bins):
+        for val in output.vals:
+            prod *= val
+    return prod
 
 
 class TestBots(unittest.TestCase):
