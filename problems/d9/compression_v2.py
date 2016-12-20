@@ -69,10 +69,11 @@ class Compression(object):
         return self.combine(self.parse(text))
 
 
-class Tests(unittest.TestCase):
-    def test_parse_marker_data(self):
-        decomp = Compression()
+class TestDeepCompression(unittest.TestCase):
+    def setUp(self):
+        self.comp = Compression()
 
+    def test_parse_marker_data(self):
         text = '(2x2)BCD(2x2)EFG'
         marker = Marker(len(text) - 1, 3)
         element = Element([Element([Element('BC', 1)], 2),
@@ -82,33 +83,31 @@ class Tests(unittest.TestCase):
                            Element([Element('EF', 1)], 2)],
                           repeat=3)
 
-        expected = (element, 'G', decomp.parse_regular)
-        self.assertEqual(decomp.parse_marker_data(text, marker), expected)
+        expected = (element, 'G', self.comp.parse_regular)
+        self.assertEqual(self.comp.parse_marker_data(text, marker), expected)
 
     def test_parse_marker(self):
-        decomp = Compression()
-
         expected = (Element([Element('abc', 1)], 51), 'd',
-                    decomp.parse_regular)
-        self.assertEqual(decomp.parse_marker('(3x51)abcd'), expected)
+                    self.comp.parse_regular)
+        self.assertEqual(self.comp.parse_marker('(3x51)abcd'), expected)
 
-        self.assertEqual(decomp.parse_marker('(0x51)'),
-                         (Element([], 51), '', decomp.parse_regular))
+        self.assertEqual(self.comp.parse_marker('(0x51)'),
+                         (Element([], 51), '', self.comp.parse_regular))
 
-        expected = (Element([Element('ab', 1)], 51), '', decomp.parse_regular)
-        self.assertEqual(decomp.parse_marker('(2x51)ab'), expected)
+        expected = (Element([Element('ab', 1)], 51),
+                    '',
+                    self.comp.parse_regular)
+        self.assertEqual(self.comp.parse_marker('(2x51)ab'), expected)
 
     def test_parse_regular(self):
-        decomp = Compression()
+        expected = (Element('abcd', 1), '(48x51)efg', self.comp.parse_marker)
+        self.assertEqual(self.comp.parse_regular('abcd(48x51)efg'), expected)
 
-        expected = (Element('abcd', 1), '(48x51)efg', decomp.parse_marker)
-        self.assertEqual(decomp.parse_regular('abcd(48x51)efg'), expected)
+        self.assertEqual(self.comp.parse_regular(''),
+                         (Element('', 1), '', self.comp.parse_marker))
 
-        self.assertEqual(decomp.parse_regular(''),
-                         (Element('', 1), '', decomp.parse_marker))
-
-        self.assertEqual(decomp.parse_regular('abcde'),
-                         (Element('abcde', 1), '', decomp.parse_marker))
+        self.assertEqual(self.comp.parse_regular('abcde'),
+                         (Element('abcde', 1), '', self.comp.parse_marker))
 
     def test_parse(self):
         text = 'abcd(7x15)(1x11)efg(3x3)hijklm'
@@ -117,7 +116,7 @@ class Tests(unittest.TestCase):
                     Element('fg', 1),
                     Element([Element('hij', 1)], 3),
                     Element('klm', 1)]
-        self.assertEqual(Compression().parse(text), expected)
+        self.assertEqual(self.comp.parse(text), expected)
 
     def test_combine(self):
         elements = [Element('abcd', 1),
@@ -132,10 +131,10 @@ class Tests(unittest.TestCase):
             'hij' * 3,
             'klm'
         ])
-        self.assertEqual(Compression().combine(elements), expected)
+        self.assertEqual(self.comp.combine(elements), expected)
 
     def assert_decompress(self, text, expected):
-        self.assertEqual(Compression().decompress(text), expected)
+        self.assertEqual(self.comp.decompress(text), expected)
 
     def test_decompress(self):
         self.assert_decompress('ADVENT', 'ADVENT')
@@ -146,8 +145,8 @@ class Tests(unittest.TestCase):
         self.assert_decompress('X(8x2)(3x3)ABCY', 'XABCABCABCABCABCABCY')
 
     def assert_count(self, text):
-        decomp = Compression()
-        self.assertEqual(decomp.count(text), len(decomp.decompress(text)))
+        self.assertEqual(self.comp.count(text),
+                         len(self.comp.decompress(text)))
 
     def test_count(self):
         self.assert_count('ADVENT')
