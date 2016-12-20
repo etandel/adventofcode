@@ -27,55 +27,52 @@ class Element(BaseElement):
         return el * self.repeat
 
 
-def parse_marker_data(text, marker):
-    sub_elements = parse(text[:marker.length])
-    return (Element(sub_elements, marker.repeat),
-            text[marker.length:],
-            parse_regular)
+class Compression(object):
+    def parse_marker_data(self, text, marker):
+        sub_elements = self.parse(text[:marker.length])
+        return (Element(sub_elements, marker.repeat),
+                text[marker.length:],
+                self.parse_regular)
 
+    def parse_marker(self, text):
+        match = MARKER_RE.match(text)
+        marker = Marker(*map(int, match.groups()))
+        return self.parse_marker_data(text[match.end():], marker)
 
-def parse_marker(text):
-    match = MARKER_RE.match(text)
-    marker = Marker(*map(int, match.groups()))
-    return parse_marker_data(text[match.end():], marker)
+    def parse_regular(self, text):
+        try:
+            next_marker = text.index('(')
+        except ValueError:  # '(' not found
+            next_marker = len(text)
 
+        return (Element(text[:next_marker], 1),
+                text[next_marker:],
+                self.parse_marker)
 
-def parse_regular(text):
-    try:
-        next_marker = text.index('(')
-    except ValueError:  # '(' not found
-        next_marker = len(text)
+    def parse(self, text):
+        elements = []
+        parser = self.parse_regular
+        while text:
+            element, text, parser = parser(text)
+            if element.element:
+                elements.append(element)
 
-    return (Element(text[:next_marker], 1),
-            text[next_marker:],
-            parse_marker)
+        return elements
 
+    def combine(self, elements):
+        return ''.join(el.combine() for el in elements)
 
-def parse(text):
-    elements = []
-    state = parse_regular
-    while text:
-        element, text, state = state(text)
-        if element.element:
-            elements.append(element)
+    def count(self, text):
+        return sum(el.count() for el in self.parse(text))
 
-    return elements
-
-
-def combine(elements):
-    return ''.join(el.combine() for el in elements)
-
-
-def count(elements):
-    return sum(el.count() for el in elements)
-
-
-def decompress(text):
-    return combine(parse(text))
+    def decompress(self, text):
+        return self.combine(self.parse(text))
 
 
 class Tests(unittest.TestCase):
     def test_parse_marker_data(self):
+        decomp = Compression()
+
         text = '(2x2)BCD(2x2)EFG'
         marker = Marker(len(text) - 1, 3)
         element = Element([Element([Element('BC', 1)], 2),
@@ -85,38 +82,42 @@ class Tests(unittest.TestCase):
                            Element([Element('EF', 1)], 2)],
                           repeat=3)
 
-        expected = (element, 'G', parse_regular)
-        self.assertEqual(parse_marker_data(text, marker), expected)
+        expected = (element, 'G', decomp.parse_regular)
+        self.assertEqual(decomp.parse_marker_data(text, marker), expected)
 
     def test_parse_marker(self):
-        expected = (Element([Element('abc', 1)], 51), 'd', parse_regular)
-        self.assertEqual(parse_marker('(3x51)abcd'), expected)
+        decomp = Compression()
 
-        self.assertEqual(parse_marker('(0x51)'),
-                         (Element([], 51), '', parse_regular))
+        expected = (Element([Element('abc', 1)], 51), 'd',
+                    decomp.parse_regular)
+        self.assertEqual(decomp.parse_marker('(3x51)abcd'), expected)
 
-        self.assertEqual(parse_marker('(2x51)ab'),
-                         (Element([Element('ab', 1)], 51), '', parse_regular))
+        self.assertEqual(decomp.parse_marker('(0x51)'),
+                         (Element([], 51), '', decomp.parse_regular))
+
+        expected = (Element([Element('ab', 1)], 51), '', decomp.parse_regular)
+        self.assertEqual(decomp.parse_marker('(2x51)ab'), expected)
 
     def test_parse_regular(self):
-        self.assertEqual(parse_regular('abcd(48x51)efg'),
-                         (Element('abcd', 1), '(48x51)efg', parse_marker))
+        decomp = Compression()
 
-        self.assertEqual(parse_regular(''),
-                         (Element('', 1), '', parse_marker))
+        expected = (Element('abcd', 1), '(48x51)efg', decomp.parse_marker)
+        self.assertEqual(decomp.parse_regular('abcd(48x51)efg'), expected)
 
-        self.assertEqual(parse_regular('abcde'),
-                         (Element('abcde', 1), '', parse_marker))
+        self.assertEqual(decomp.parse_regular(''),
+                         (Element('', 1), '', decomp.parse_marker))
+
+        self.assertEqual(decomp.parse_regular('abcde'),
+                         (Element('abcde', 1), '', decomp.parse_marker))
 
     def test_parse(self):
         text = 'abcd(7x15)(1x11)efg(3x3)hijklm'
-        elements = parse(text)
         expected = [Element('abcd', 1),
                     Element([Element([Element('e', 1)], 11)], 15),
                     Element('fg', 1),
                     Element([Element('hij', 1)], 3),
                     Element('klm', 1)]
-        self.assertEqual(elements, expected)
+        self.assertEqual(Compression().parse(text), expected)
 
     def test_combine(self):
         elements = [Element('abcd', 1),
@@ -131,18 +132,22 @@ class Tests(unittest.TestCase):
             'hij' * 3,
             'klm'
         ])
-        self.assertEqual(combine(elements), expected)
+        self.assertEqual(Compression().combine(elements), expected)
+
+    def assert_decompress(self, text, expected):
+        self.assertEqual(Compression().decompress(text), expected)
 
     def test_decompress(self):
-        self.assertEqual(decompress('ADVENT'), 'ADVENT')
-        self.assertEqual(decompress('A(1x5)BC'), 'ABBBBBC')
-        self.assertEqual(decompress('(3x3)XYZ'), 'XYZXYZXYZ')
-        self.assertEqual(decompress('A(2x2)BCD(2x2)EFG'), 'ABCBCDEFEFG')
-        self.assertEqual(decompress('(6x1)(1x3)A'), 'AAA')
-        self.assertEqual(decompress('X(8x2)(3x3)ABCY'), 'XABCABCABCABCABCABCY')
+        self.assert_decompress('ADVENT', 'ADVENT')
+        self.assert_decompress('A(1x5)BC', 'ABBBBBC')
+        self.assert_decompress('(3x3)XYZ', 'XYZXYZXYZ')
+        self.assert_decompress('A(2x2)BCD(2x2)EFG', 'ABCBCDEFEFG')
+        self.assert_decompress('(6x1)(1x3)A', 'AAA')
+        self.assert_decompress('X(8x2)(3x3)ABCY', 'XABCABCABCABCABCABCY')
 
     def assert_count(self, text):
-        self.assertEqual(count(parse(text)), len(decompress(text)))
+        decomp = Compression()
+        self.assertEqual(decomp.count(text), len(decomp.decompress(text)))
 
     def test_count(self):
         self.assert_count('ADVENT')

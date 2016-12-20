@@ -1,7 +1,7 @@
 import sys
 import unittest
 from compression_v1 import count as count_v1, parse as parse_v1
-from compression_v2 import count as count_v2, parse as parse_v2
+from compression_v2 import Compression
 
 
 INPUT = open('input.txt')
@@ -12,7 +12,7 @@ def part1():
 
 
 def part2():
-    return count_v2(parse_v2(INPUT.read().replace('\n', '')))
+    return Compression().count(INPUT.read().replace('\n', ''))
 
 
 if __name__ == '__main__':
