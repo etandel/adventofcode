@@ -1,18 +1,21 @@
 import sys
 import unittest
-from compression_v1 import count as count_v1, parse as parse_v1
 from compression_v2 import Compression
 
 
 INPUT = open('input.txt')
 
 
+def go(deep):
+    return Compression(deep).count(INPUT.read().replace('\n', ''))
+
+
 def part1():
-    return count_v1(parse_v1(INPUT.read().replace('\n', '')))
+    return go(False)
 
 
 def part2():
-    return Compression().count(INPUT.read().replace('\n', ''))
+    return go(True)
 
 
 if __name__ == '__main__':
