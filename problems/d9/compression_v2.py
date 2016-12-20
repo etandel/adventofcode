@@ -26,10 +26,9 @@ class Element(BaseElement):
             el = ''.join(el.combine() for el in self.element)
         return el * self.repeat
 
-
 class Compression(object):
     def parse_marker_data(self, text, marker):
-        sub_elements = self.parse(text[:marker.length])
+        sub_elements = self.parse(text[:marker.length]).element
         return (Element(sub_elements, marker.repeat),
                 text[marker.length:],
                 self.parse_regular)
@@ -57,16 +56,44 @@ class Compression(object):
             if element.element:
                 elements.append(element)
 
-        return elements
-
-    def combine(self, elements):
-        return ''.join(el.combine() for el in elements)
+        return Element(elements, 1)
 
     def count(self, text):
-        return sum(el.count() for el in self.parse(text))
+        return self.parse(text).count()
 
     def decompress(self, text):
-        return self.combine(self.parse(text))
+        return self.parse(text).combine()
+
+
+class TestElement(unittest.TestCase):
+    def assert_element(self, element, combined):
+        self.assertEqual(element.combine(), combined)
+        self.assertEqual(element.count(), len(combined))
+
+    def test_flat(self):
+        self.assert_element(Element('abcd', 2), 'abcd' * 2)
+
+    def test_nested(self):
+        element = Element([Element('abcd', 2),
+                           Element('efg', 2)],
+                          repeat=1)
+        self.assert_element(element, 'abcd' * 2 + 'efg' * 2)
+
+    def test_multi_nested(self):
+        element = Element([Element('abcd', 1),
+                           Element([Element([Element('e', 1)], 11)], 15),
+                           Element('fg', 1),
+                           Element([Element('hij', 1)], 3),
+                           Element('klm', 1)],
+                          repeat=1)
+        combined = ''.join([
+            'abcd',
+            ('e' * 11) * 15,
+            'fg',
+            'hij' * 3,
+            'klm'
+        ])
+        self.assert_element(element, combined)
 
 
 class TestDeepCompression(unittest.TestCase):
@@ -111,27 +138,13 @@ class TestDeepCompression(unittest.TestCase):
 
     def test_parse(self):
         text = 'abcd(7x15)(1x11)efg(3x3)hijklm'
-        expected = [Element('abcd', 1),
-                    Element([Element([Element('e', 1)], 11)], 15),
-                    Element('fg', 1),
-                    Element([Element('hij', 1)], 3),
-                    Element('klm', 1)]
+        expected = Element([Element('abcd', 1),
+                            Element([Element([Element('e', 1)], 11)], 15),
+                            Element('fg', 1),
+                            Element([Element('hij', 1)], 3),
+                            Element('klm', 1)],
+                           repeat=1)
         self.assertEqual(self.comp.parse(text), expected)
-
-    def test_combine(self):
-        elements = [Element('abcd', 1),
-                    Element([Element([Element('e', 1)], 11)], 15),
-                    Element('fg', 1),
-                    Element([Element('hij', 1)], 3),
-                    Element('klm', 1)]
-        expected = ''.join([
-            'abcd',
-            ('e' * 11) * 15,
-            'fg',
-            'hij' * 3,
-            'klm'
-        ])
-        self.assertEqual(self.comp.combine(elements), expected)
 
     def assert_decompress(self, text, expected):
         self.assertEqual(self.comp.decompress(text), expected)
@@ -143,18 +156,6 @@ class TestDeepCompression(unittest.TestCase):
         self.assert_decompress('A(2x2)BCD(2x2)EFG', 'ABCBCDEFEFG')
         self.assert_decompress('(6x1)(1x3)A', 'AAA')
         self.assert_decompress('X(8x2)(3x3)ABCY', 'XABCABCABCABCABCABCY')
-
-    def assert_count(self, text):
-        self.assertEqual(self.comp.count(text),
-                         len(self.comp.decompress(text)))
-
-    def test_count(self):
-        self.assert_count('ADVENT')
-        self.assert_count('A(1x5)BC')
-        self.assert_count('(3x3)XYZ')
-        self.assert_count('A(2x2)BCD(2x2)EFG')
-        self.assert_count('(6x1)(1x3)A')
-        self.assert_count('X(8x2)(3x3)ABCY')
 
 
 if __name__ == '__main__':
