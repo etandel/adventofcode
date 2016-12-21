@@ -1,15 +1,12 @@
 import sys
 from enum import Enum
-from collections import Iterable
+from collections import Iterable, namedtuple
 from itertools import chain, combinations, starmap
 from operator import add, eq, sub
+from queue import LifoQueue, Queue
 
 
 INPUT = open('input.txt')
-
-
-def part1():
-    return None
 
 
 def part2():
@@ -69,6 +66,10 @@ class Floor:
     def __iter__(self):
         return iter(self.get_objects())
 
+    def __hash__(self):
+        return hash(sum(hash(obj)**i
+                        for i, obj in enumerate(self, 1)))
+
     def _get_bag(self, obj):
         return self._bags[type(obj)]
 
@@ -113,6 +114,21 @@ class Floor:
         return True
 
 
+BaseState = namedtuple('State', 'position building')
+
+
+class State(BaseState):
+    def _elevator_lines(self):
+        middle = ['|.|'] * 4
+        middle[self.position] = '|*|'
+        return ['___'] + middle[::-1] + ['---']
+
+    def __str__(self):
+        building = str(self.building).split('\n')
+        elevator = self._elevator_lines()
+        return '\n'.join(map(''.join, zip(elevator, building)))
+
+
 class Building:
     def __init__(self, floors):
         self.floors = floors
@@ -124,17 +140,22 @@ class Building:
         return (type(self) == type(other) and
                 all(starmap(eq, zip(self.floors, other.floors))))
 
+    def __hash__(self):
+        return hash(sum(hash(floor)**i
+                        for i, floor in enumerate(self.floors, 1)))
+
     def __repr__(self):
         return '{}({!r})'.format(type(self).__name__, self.floors)
 
     def __str__(self):
         floor_strs = list(map(str, self.floors[::-1]))
         max_len = max(map(len, floor_strs))
-        frame = ['_' * (max_len + 2)]
         middle = ['|{}{}|'.format(floor_str, ' ' * (max_len - len(floor_str)))
                   for floor_str in floor_strs]
 
-        return '\n'.join(frame + middle + frame)
+        return '\n'.join(['_' * (max_len + 2)] +
+                         middle +
+                         ['-' * (max_len + 2)])
 
     def is_possible(self):
         return all(floor.is_possible() for floor in self.floors)
@@ -149,7 +170,7 @@ class Building:
             new_floors[position] = new_floors[position].remove(objects)
             new_floors[to] = new_floors[to].add(objects)
 
-            return to, type(self)(new_floors)
+            return State(to, type(self)(new_floors))
 
     def move_objects_up(self, position, objects):
         return self._move(position, objects, add)
@@ -171,7 +192,55 @@ class Building:
         return possibilities
 
 
-BUILDING = [
+class BuildingSearchTree:
+    def __init__(self, level, visited, state):
+        self.level = level
+        self.visited = visited
+        self.state = state
+        self.children = []
+
+    def get_candidate_children(self):
+        position, building = self.state
+        return building.get_possible_buildings(position)
+
+    def set_children(self):
+        self.children = [state
+                         for state in self.get_candidate_children()
+                         if state not in self.visited]
+
+
+def search(state, condition):
+    best_level = float('inf')
+    visited = set()
+    to_visit = Queue()
+    to_visit.put((1, state))
+
+    count = 0
+    while not to_visit.empty():
+        level, state = to_visit.get()
+        visited.add(state)
+
+        count += 1
+        if count % 1000 == 0:
+            print(count)
+            print(level)
+            print(state)
+
+        if state == condition:
+            return level
+        else:
+            position, building = state
+            children = (child
+                        for child in building.get_possible_buildings(position)
+                        if child not in visited)
+
+            for child in children:
+                to_visit.put((level + 1, child))
+
+    return best_level
+
+
+INITIAL = Building([
     Floor([Generator(Element.Tm), Microchip(Element.Tm),
            Generator(Element.Pu), Generator(Element.Sr)]),
 
@@ -181,7 +250,17 @@ BUILDING = [
            Generator(Element.Ru), Microchip(Element.Ru)]),
 
     Floor(),
-]
+])
+
+
+EXPECTED = Building([Floor()] * 3 +
+                    [Floor([cls(element)
+                            for cls in (Generator, Microchip)
+                            for element in Element])])
+
+
+def part1():
+    return search((0, INITIAL), (3, EXPECTED))
 
 
 if __name__ == '__main__':
