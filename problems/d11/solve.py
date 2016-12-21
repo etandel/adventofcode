@@ -132,33 +132,23 @@ class Building:
     def is_possible(self):
         return all(floor.is_possible() for floor in self.floors)
 
-    def _get_floor(self, objects):
-        floors = set(map(self.object_index.get, objects))
-
-        # moving objects must all be on same floor
-        if len(floors) != 1:
-            raise InvalidMoveError()
-
-        return floors.pop()
-
-    def _move(self, objects, op):
-        from_ = self._get_floor(objects)
-        to = op(from_, 1)
+    def _move(self, position, objects, op):
+        to = op(position, 1)
 
         if to in (-1, 4):
             raise InvalidMoveError()
 
         new_floors = list(self.floors)
-        new_floors[from_] = new_floors[from_].remove(objects)
+        new_floors[position] = new_floors[position].remove(objects)
         new_floors[to] = new_floors[to].add(objects)
 
         return to, type(self)(new_floors)
 
-    def move_objects_up(self, objects):
-        return self._move(objects, add)
+    def move_objects_up(self, position, objects):
+        return self._move(position, objects, add)
 
-    def move_objects_down(self, objects):
-        return self._move(objects, sub)
+    def move_objects_down(self, position, objects):
+        return self._move(position, objects, sub)
 
     def get_possible_buildings(self, position):
         possibilities = []
@@ -169,7 +159,7 @@ class Building:
         for objects in combs:
             for mover in (self.move_objects_up, self.move_objects_down):
                 try:
-                    move = mover(objects)
+                    move = mover(position, objects)
                 except InvalidMoveError:
                     move = None
 

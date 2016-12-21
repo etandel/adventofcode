@@ -92,17 +92,17 @@ class TestBuilding(unittest.TestCase):
     def test_move(self):
         b = Building([Floor([MICRO1]), Floor(), Floor(), Floor([MICRO2])])
 
-        self.assertRaises(InvalidMoveError, b.move_objects_up, [MICRO2])
-        self.assertRaises(InvalidMoveError, b.move_objects_down, [MICRO1])
+        self.assertRaises(InvalidMoveError, b.move_objects_up, 3, [])
+        self.assertRaises(InvalidMoveError, b.move_objects_down, 0, [])
 
-        pos, b = b.move_objects_up([MICRO1])
+        pos, b = b.move_objects_up(0, [MICRO1])
         self.assertEqual(pos, 1)
         self.assertEqual(b, Building([Floor(),
                                       Floor([MICRO1]),
                                       Floor(),
                                       Floor([MICRO2])]))
 
-        pos, b = b.move_objects_down([MICRO2])
+        pos, b = b.move_objects_down(3, [MICRO2])
         self.assertEqual(pos, 2)
         self.assertEqual(b, Building([Floor(),
                                       Floor([MICRO1]),
