@@ -34,7 +34,8 @@ class Object:
     def __repr__(self):
         return '{}({!r})'.format(type(self).__name__, self.el)
 
-    __str__ = __repr__
+    def __str__(self):
+        return '{}-{}'.format(type(self).__name__[0], self.el.name)
 
 
 class Microchip(Object):
@@ -55,7 +56,8 @@ class Floor:
     def __repr__(self):
         return '{}({!r})'.format(type(self).__name__, self.get_objects())
 
-    __str__ = __repr__
+    def __str__(self):
+        return ' '.join(sorted(map(str, self)))
 
     def __eq__(self, other):
         return (type(self) == type(other) and
@@ -124,6 +126,15 @@ class Building:
 
     def __repr__(self):
         return '{}({!r})'.format(type(self).__name__, self.floors)
+
+    def __str__(self):
+        floor_strs = list(map(str, self.floors[::-1]))
+        max_len = max(map(len, floor_strs))
+        frame = ['_' * (max_len + 2)]
+        middle = ['|{}{}|'.format(floor_str, ' ' * (max_len - len(floor_str)))
+                  for floor_str in floor_strs]
+
+        return '\n'.join(frame + middle + frame)
 
     def is_possible(self):
         return all(floor.is_possible() for floor in self.floors)
