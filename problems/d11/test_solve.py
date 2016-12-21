@@ -1,5 +1,6 @@
 import unittest
-from solve import Element, Floor, Generator, Microchip
+from solve import (Building, Element, Floor, Generator, Microchip,
+                   InvalidMoveError)
 
 
 class TestFloor(unittest.TestCase):
@@ -96,6 +97,25 @@ class TestFloor(unittest.TestCase):
         self.assertEqual(Floor([gen2, micro2]).remove([micro1, gen2]),
                          Floor([micro2]))
 
+
+class TestBuilding(unittest.TestCase):
+    def test_move(self):
+        micro1 = Microchip(Element.Pu)
+        micro2 = Microchip(Element.Sr)
+        gen1 = Generator(Element.Pu)
+        gen2 = Generator(Element.Sr)
+
+        b = Building([Floor([micro1]), Floor(), Floor(), Floor([micro2])])
+
+        self.assertRaises(InvalidMoveError, b.move_objects_up, [micro2])
+        self.assertRaises(InvalidMoveError, b.move_objects_down, [micro1])
+
+        new_b = b.move_objects_up([micro1]).move_objects_down([micro2])
+        expected = Building([Floor(),
+                             Floor([micro1]),
+                             Floor([micro2]),
+                             Floor()])
+        self.assertEqual(new_b, expected)
 
 if __name__ == '__main__':
     unittest.main()
