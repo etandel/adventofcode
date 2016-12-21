@@ -117,5 +117,17 @@ class TestBuilding(unittest.TestCase):
                              Floor()])
         self.assertEqual(new_b, expected)
 
+    def is_possible(self):
+        micro1 = Microchip(Element.Pu)
+        micro2 = Microchip(Element.Sr)
+        gen1 = Generator(Element.Pu)
+        gen2 = Generator(Element.Sr)
+
+        possible = Building([Floor(), Floor(), Floor(), Floor()])
+        impossible = Building([Floor([micro1, gen2]),
+                               Floor(), Floor(), Floor()])
+        self.assertTrue(possible.is_possible())
+        self.assertFalse(impossible.is_possible())
+
 if __name__ == '__main__':
     unittest.main()

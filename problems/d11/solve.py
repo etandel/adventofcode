@@ -126,6 +126,9 @@ class Building:
         return (type(self) == type(other) and
                 all(starmap(eq, zip(self.floors, other.floors))))
 
+    def is_possible(self):
+        return all(floor.is_possible() for floor in self.floors)
+
     def _get_floor(self, objects):
         floors = set(map(self.object_index.get, objects))
 
