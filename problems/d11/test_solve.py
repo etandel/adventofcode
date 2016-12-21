@@ -95,12 +95,19 @@ class TestBuilding(unittest.TestCase):
         self.assertRaises(InvalidMoveError, b.move_objects_up, [MICRO2])
         self.assertRaises(InvalidMoveError, b.move_objects_down, [MICRO1])
 
-        new_b = b.move_objects_up([MICRO1]).move_objects_down([MICRO2])
-        expected = Building([Floor(),
-                             Floor([MICRO1]),
-                             Floor([MICRO2]),
-                             Floor()])
-        self.assertEqual(new_b, expected)
+        pos, b = b.move_objects_up([MICRO1])
+        self.assertEqual(pos, 1)
+        self.assertEqual(b, Building([Floor(),
+                                      Floor([MICRO1]),
+                                      Floor(),
+                                      Floor([MICRO2])]))
+
+        pos, b = b.move_objects_down([MICRO2])
+        self.assertEqual(pos, 2)
+        self.assertEqual(b, Building([Floor(),
+                                      Floor([MICRO1]),
+                                      Floor([MICRO2]),
+                                      Floor()]))
 
     def is_possible(self):
         possible = Building([Floor(), Floor(), Floor(), Floor()])
@@ -116,7 +123,7 @@ class TestBuilding(unittest.TestCase):
             floors = [Floor()] * 4
             floors[position] = remaining
             floors[index] = moved
-            return Building(floors)
+            return index, Building(floors)
 
         expected = [build_building(moved, remaining, index)
                     for moved, remaining in possibilities

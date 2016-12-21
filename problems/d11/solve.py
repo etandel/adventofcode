@@ -152,7 +152,7 @@ class Building:
         new_floors[from_] = new_floors[from_].remove(objects)
         new_floors[to] = new_floors[to].add(objects)
 
-        return type(self)(new_floors)
+        return to, type(self)(new_floors)
 
     def move_objects_up(self, objects):
         return self._move(objects, add)
@@ -167,14 +167,14 @@ class Building:
                       combinations(self.floors[position], 2))
 
         for objects in combs:
-            for move in (self.move_objects_up, self.move_objects_down):
+            for mover in (self.move_objects_up, self.move_objects_down):
                 try:
-                    new_b = move(objects)
+                    move = mover(objects)
                 except InvalidMoveError:
-                    new_b = None
+                    move = None
 
-                if new_b and new_b.is_possible():
-                    possibilities.append(new_b)
+                if move and move[1].is_possible():
+                    possibilities.append(move)
         return possibilities
 
 
