@@ -1,4 +1,6 @@
 import unittest
+from itertools import chain
+
 from solve import (Building, Element, Floor, Generator, Microchip,
                    InvalidMoveError)
 
@@ -85,6 +87,8 @@ class TestFloor(unittest.TestCase):
 
 
 class TestBuilding(unittest.TestCase):
+    maxDiff = None
+
     def test_move(self):
         b = Building([Floor([MICRO1]), Floor(), Floor(), Floor([MICRO2])])
 
@@ -104,6 +108,75 @@ class TestBuilding(unittest.TestCase):
                                Floor(), Floor(), Floor()])
         self.assertTrue(possible.is_possible())
         self.assertFalse(impossible.is_possible())
+
+    def assert_possible_buildings(self, building, position, moveto,
+                                  possibilities):
+
+        def build_building(moved, remaining, index):
+            floors = [Floor()] * 4
+            floors[position] = remaining
+            floors[index] = moved
+            return Building(floors)
+
+        expected = [build_building(moved, remaining, index)
+                    for moved, remaining in possibilities
+                    for index in moveto]
+        got = building.get_possible_buildings(position)
+        self.assertCountEqual(got, expected)
+
+    def test_get_possible_buildings__empty_floor(self):
+        b = Building([Floor([MICRO1, MICRO2]), Floor(), Floor(), Floor()])
+        self.assert_possible_buildings(b, 1, [0, 2], [])
+
+    def test_get_possible_buildings__1_object(self):
+        empty = Floor()
+        full = Floor([MICRO1])
+        b = Building([empty, full, empty, empty])
+        self.assert_possible_buildings(b, 1, [0, 2], [(full, empty)])
+
+    def test_get_possible_buildings__2_objects(self):
+        b = Building([Floor(), Floor([MICRO1, MICRO2]), Floor(), Floor()])
+        possibilities = [
+            (Floor([MICRO1]), Floor([MICRO2])),
+            (Floor([MICRO2]), Floor([MICRO1])),
+
+            (Floor([MICRO1, MICRO2]), Floor()),
+        ]
+        self.assert_possible_buildings(b, 1, [0, 2], possibilities)
+
+    def test_get_possible_buildings__bounded(self):
+        empty = Floor()
+        full = Floor([MICRO1, MICRO2])
+        possibilities = [
+            (Floor([MICRO1]), Floor([MICRO2])),
+            (Floor([MICRO2]), Floor([MICRO1])),
+
+            (full, empty),
+        ]
+
+        # up
+        b = Building([full] + [empty] * 3)
+        self.assert_possible_buildings(b, 0, [1], possibilities)
+
+        # down
+        b = Building([empty] * 3 + [full])
+        self.assert_possible_buildings(b, 3, [2], possibilities)
+
+    def test_get_possible_buildings_more_than_2_objects(self):
+        b = Building([Floor(),
+                      Floor([MICRO1, MICRO2, GEN1]),
+                      Floor(),
+                      Floor()])
+
+        possibilities = [
+            (Floor([GEN1]), Floor([MICRO1, MICRO2])),
+            (Floor([MICRO2]), Floor([MICRO1, GEN1])),
+
+            (Floor([MICRO1, MICRO2]), Floor([GEN1])),
+            (Floor([MICRO1, GEN1]), Floor([MICRO2])),
+        ]
+        self.assert_possible_buildings(b, 1, [0, 2], possibilities)
+
 
 if __name__ == '__main__':
     unittest.main()

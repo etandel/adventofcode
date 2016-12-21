@@ -1,7 +1,7 @@
 import sys
 from enum import Enum
 from collections import Iterable
-from itertools import chain, starmap
+from itertools import chain, combinations, starmap
 from operator import add, eq, sub
 
 
@@ -126,6 +126,9 @@ class Building:
         return (type(self) == type(other) and
                 all(starmap(eq, zip(self.floors, other.floors))))
 
+    def __repr__(self):
+        return '{}({!r})'.format(type(self).__name__, self.floors)
+
     def is_possible(self):
         return all(floor.is_possible() for floor in self.floors)
 
@@ -156,6 +159,23 @@ class Building:
 
     def move_objects_down(self, objects):
         return self._move(objects, sub)
+
+    def get_possible_buildings(self, position):
+        possibilities = []
+
+        combs = chain(combinations(self.floors[position], 1),
+                      combinations(self.floors[position], 2))
+
+        for objects in combs:
+            for move in (self.move_objects_up, self.move_objects_down):
+                try:
+                    new_b = move(objects)
+                except InvalidMoveError:
+                    new_b = None
+
+                if new_b and new_b.is_possible():
+                    possibilities.append(new_b)
+        return possibilities
 
 
 BUILDING = [
