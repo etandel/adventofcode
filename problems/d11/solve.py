@@ -111,10 +111,6 @@ class Floor:
         return True
 
 
-class InvalidMoveError(Exception):
-    pass
-
-
 class Building:
     def __init__(self, floors):
         self.floors = floors
@@ -136,13 +132,13 @@ class Building:
         to = op(position, 1)
 
         if to in (-1, 4):
-            raise InvalidMoveError()
+            return None
+        else:
+            new_floors = list(self.floors)
+            new_floors[position] = new_floors[position].remove(objects)
+            new_floors[to] = new_floors[to].add(objects)
 
-        new_floors = list(self.floors)
-        new_floors[position] = new_floors[position].remove(objects)
-        new_floors[to] = new_floors[to].add(objects)
-
-        return to, type(self)(new_floors)
+            return to, type(self)(new_floors)
 
     def move_objects_up(self, position, objects):
         return self._move(position, objects, add)
@@ -158,11 +154,7 @@ class Building:
 
         for objects in combs:
             for mover in (self.move_objects_up, self.move_objects_down):
-                try:
-                    move = mover(position, objects)
-                except InvalidMoveError:
-                    move = None
-
+                move = mover(position, objects)
                 if move and move[1].is_possible():
                     possibilities.append(move)
         return possibilities

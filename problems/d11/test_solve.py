@@ -1,8 +1,6 @@
 import unittest
-from itertools import chain
 
-from solve import (Building, Element, Floor, Generator, Microchip,
-                   InvalidMoveError)
+from solve import Building, Element, Floor, Generator, Microchip
 
 
 MICRO1 = Microchip(Element.Pu)
@@ -92,8 +90,8 @@ class TestBuilding(unittest.TestCase):
     def test_move(self):
         b = Building([Floor([MICRO1]), Floor(), Floor(), Floor([MICRO2])])
 
-        self.assertRaises(InvalidMoveError, b.move_objects_up, 3, [])
-        self.assertRaises(InvalidMoveError, b.move_objects_down, 0, [])
+        self.assertIsNone(b.move_objects_up(3, []))
+        self.assertIsNone(b.move_objects_down(0, []))
 
         pos, b = b.move_objects_up(0, [MICRO1])
         self.assertEqual(pos, 1)
