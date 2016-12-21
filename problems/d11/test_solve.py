@@ -32,7 +32,7 @@ class TestFloor(unittest.TestCase):
                                  Microchip(Element.Pu)],
                                 False)
 
-    def test_add(self):
+    def test_add_single(self):
         micro1 = Microchip(Element.Pu)
         micro2 = Microchip(Element.Sr)
         gen1 = Generator(Element.Pu)
@@ -54,7 +54,20 @@ class TestFloor(unittest.TestCase):
         self.assertEqual(floor.add(micro2), floor)
         self.assertEqual(floor.add(gen2), floor)
 
-    def test_remove(self):
+    def test_add_multiple(self):
+        micro1 = Microchip(Element.Pu)
+        micro2 = Microchip(Element.Sr)
+        gen1 = Generator(Element.Pu)
+        gen2 = Generator(Element.Sr)
+
+        self.assertEqual(Floor().add([micro1, gen1]),
+                         Floor([micro1, gen1]))
+
+        # add to nonempty floor
+        self.assertEqual(Floor([gen1, gen2]).add([micro1, micro2]),
+                         Floor([gen1, gen2, micro1, micro2]))
+
+    def test_remove_single(self):
         micro1 = Microchip(Element.Pu)
         micro2 = Microchip(Element.Sr)
         gen1 = Generator(Element.Pu)
@@ -72,6 +85,16 @@ class TestFloor(unittest.TestCase):
         # remove member
         self.assertEqual(floor.remove(micro2), Floor([gen2]))
         self.assertEqual(floor.remove(gen2), Floor([micro2]))
+
+    def test_remove_multiple(self):
+        micro1 = Microchip(Element.Pu)
+        micro2 = Microchip(Element.Sr)
+        gen1 = Generator(Element.Pu)
+        gen2 = Generator(Element.Sr)
+
+        self.assertEqual(Floor().remove([micro1, gen1]), Floor())
+        self.assertEqual(Floor([gen2, micro2]).remove([micro1, gen2]),
+                         Floor([micro2]))
 
 
 if __name__ == '__main__':

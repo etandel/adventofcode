@@ -1,5 +1,6 @@
 import sys
 from enum import Enum
+from collections import Iterable
 from itertools import chain
 
 
@@ -51,15 +52,11 @@ class Floor:
         }
 
     def __repr__(self):
-        return ('{}({!r})'
-                .format(type(self).__name__,
-                        list(chain(self.get_generators(),
-                                   self.get_microchips()))))
+        return '{}({!r})'.format(type(self).__name__, self.get_objects())
 
     def __eq__(self, other):
         return (type(self) == type(other) and
-                self.get_generators() == other.get_generators() and
-                self.get_microchips() == other.get_microchips())
+                self.get_objects() == other.get_objects())
 
     __str__ = __repr__
 
@@ -81,17 +78,20 @@ class Floor:
     def get_microchips(self, element=None):
         return self._filter_by_element(self._bags[Microchip], element)
 
-    def add(self, obj):
-        new_objs = list(chain(self.get_generators(),
-                              self.get_microchips(),
-                              (obj,)))
+    def get_objects(self, element=None):
+        return set(chain(self.get_generators(element),
+                         self.get_microchips(element)))
+
+    def add(self, objects):
+        objects = objects if isinstance(objects, Iterable) else (objects,)
+        new_objs = list(chain(self.get_objects(), objects))
         return type(self)(new_objs)
 
-    def remove(self, obj):
+    def remove(self, objects):
+        objects = objects if isinstance(objects, Iterable) else (objects,)
         new_objs = [o
-                    for o in chain(self.get_generators(),
-                                   self.get_microchips())
-                    if o != obj]
+                    for o in self.get_objects()
+                    if o not in objects]
         return type(self)(new_objs)
 
     def is_possible(self):
