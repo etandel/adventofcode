@@ -212,22 +212,21 @@ class BuildingSearchTree:
 def search(state, condition):
     best_level = float('inf')
     visited = set()
-    to_visit = Queue()
+    to_visit = LifoQueue()
     to_visit.put((1, state))
 
-    count = 0
     while not to_visit.empty():
         level, state = to_visit.get()
         visited.add(state)
 
-        count += 1
-        if count % 1000 == 0:
-            print(count)
-            print(level)
-            print(state)
-
-        if state == condition:
-            return level
+        if state == condition and level < best_level:
+            best_level = level
+            print('Found one!')
+            print(best_level)
+            continue
+        elif level == best_level or level == 240:  # heuristics
+#            print('broken!')
+            continue
         else:
             position, building = state
             children = (child
@@ -260,7 +259,7 @@ EXPECTED = Building([Floor()] * 3 +
 
 
 def part1():
-    return search((0, INITIAL), (3, EXPECTED))
+    return search(State(0, INITIAL), State(3, EXPECTED))
 
 
 if __name__ == '__main__':
