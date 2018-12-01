@@ -1,0 +1,11 @@
+# misc
+.*.sw?
+*.png
+
+# python
+*.pyc
+
+# rust
+**/target/
+**/*.rs.bk
+
