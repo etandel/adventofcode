@@ -12,21 +12,20 @@ fn count_chars(box_id: &str) -> BTreeMap<char, u32> {
 }
 
 
-fn has_exactly(n: u32, counts: &BTreeMap<char, u32>) -> bool {
-    counts.values().find(|&&count| count == n).is_some()
+fn has_exactly(n: u32, count: &BTreeMap<char, u32>) -> bool {
+    count.values().find(|&&c| c == n).is_some()
+}
+
+
+fn count_exactly(n: u32, counts: &Vec<BTreeMap<char, u32>>) -> usize {
+     counts.iter().filter(|count| has_exactly(n, &count)).count()
 }
 
 
 fn part1(){
     let content = fs::read_to_string("input.txt").unwrap();
     let counts: Vec<BTreeMap<char, u32>> = content.lines().map(count_chars).collect();
-    let twos = counts.iter()
-                     .filter(|counts| has_exactly(2, &counts))
-                     .count();
-    let threes = counts.iter()
-                       .filter(|counts| has_exactly(3, &counts))
-                       .count();
-    println!("{}", twos * threes);
+    println!("{}", count_exactly(2, &counts) * count_exactly(3, &counts));
 }
 
 
@@ -38,8 +37,7 @@ fn hamming_distance(s1: &str, s2: &str) -> usize {
 fn get_same_chars(s1: &str, s2: &str) -> String {
     s1.chars()
       .zip(s2.chars())
-      .filter(|(c1, c2)| c1 == c2)
-      .map(|(c1, _)| c1)
+      .filter_map(|(c1, c2)| if c1 == c2 {Some(c1)} else {None})
       .collect()
 }
 
@@ -64,3 +62,4 @@ fn main() {
         None => part2(),
     };
 }
+
