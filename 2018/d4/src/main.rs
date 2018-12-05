@@ -84,6 +84,7 @@ impl FromStr for LogEntry {
 }
 
 
+#[derive(Clone)]
 enum GuardState {
     JustArrived(DateTime<Utc>),
     Awoken(DateTime<Utc>),
@@ -91,6 +92,7 @@ enum GuardState {
 }
 
 
+#[derive(Clone)]
 struct Guard {
     id: u16,
     states: Vec<GuardState>,
@@ -100,18 +102,6 @@ struct Guard {
 
 fn time_to_pos<T: TimeZone>(datetime: &DateTime<T>) -> usize {
     datetime.minute() as usize
-//    let h = datetime.hour() as i32;
-//    let m = datetime.minute() as i32;
-//    let r = match h {
-//        0 => 60 + m,
-//        23 => m,
-//        _ => 1,
-//    } as usize;
-//    println!("{} - {} - {}", h, m, r);
-//    r
-//    let r: i32 = hack_mod(h - 23, 24) * 60 + m;
- //   println!("{} - {} - {} - {}", h, m, (h - 23), r);
- //   r as usize
 }
 
 
@@ -149,10 +139,16 @@ impl Guard {
 }
 
 
-//fn find_most_asleep_guard(sort_guards_by: Iterator<
+fn find_most_asleep_minute(guard: &Guard) -> usize {
+    let (min, _) = guard.minutes.iter().enumerate().max_by_key(|&(_, i)| i).unwrap();
+    min
+}
 
 
-fn part1() {
+fn go<K, F>(guard_sort_key: F)
+    where K: Ord,
+          F: for<'a> FnMut(&'a &Guard) -> K {
+
     let content = fs::read_to_string("input.txt").unwrap();
     let mut logs: Vec<LogEntry> = content.lines()
                                          .map(|l| LogEntry::from_str(l).unwrap())
@@ -174,17 +170,28 @@ fn part1() {
 
     guards.values_mut().for_each(Guard::set_minutes);
     let mut guards: Vec<&Guard> = guards.values().collect();
-    guards.sort_unstable_by_key(|g| g.minutes.iter().sum::<u16>());
+    guards.sort_unstable_by_key(guard_sort_key);
 
-    let most_asleep_guard = guards.iter().last().unwrap();
-    let (most_asleep_minute, _) = &most_asleep_guard.minutes.iter()
-        .enumerate().max_by_key(|&(_, i)| i).unwrap();
-
+    let most_asleep_guard = guards.into_iter().last().unwrap();
+    let most_asleep_minute = find_most_asleep_minute(&most_asleep_guard);
     println!("{}", (most_asleep_guard.id as usize) * (most_asleep_minute % 60));
 }
 
 
+
+fn part1() {
+    go(|g| g.minutes.iter().sum::<u16>());
+}
+
+
+
+fn get_max_min(guard: && Guard) -> u16 {
+    *guard.minutes.iter().max().unwrap()
+}
+
+
 fn part2() {
+    go(get_max_min);
 }
 
 
