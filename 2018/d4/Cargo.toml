@@ -1,0 +1,8 @@
+[package]
+name = "d4"
+version = "0.1.0"
+authors = ["Elias Tandel Barrionovo <elias.tandel@gmail.com>"]
+
+[dependencies]
+chrono = "0.4"
+regex = "1"
