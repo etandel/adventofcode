@@ -169,10 +169,8 @@ fn go<K, F>(guard_sort_key: F)
     }
 
     guards.values_mut().for_each(Guard::set_minutes);
-    let mut guards: Vec<&Guard> = guards.values().collect();
-    guards.sort_unstable_by_key(guard_sort_key);
 
-    let most_asleep_guard = guards.into_iter().last().unwrap();
+    let most_asleep_guard = guards.values().max_by_key(guard_sort_key).unwrap();;
     let most_asleep_minute = find_most_asleep_minute(&most_asleep_guard);
     println!("{}", (most_asleep_guard.id as usize) * (most_asleep_minute % 60));
 }
