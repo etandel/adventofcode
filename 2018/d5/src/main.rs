@@ -1,10 +1,10 @@
 use std::env;
 use std::fs;
+use std::collections::HashSet;
 
 
-fn part1() {
-    let content = fs::read_to_string("input.txt").unwrap();
-    let mut right: Vec<u8> = content.into_bytes().iter().rev().cloned().collect();
+fn react(polymer: Vec<u8>) -> usize {
+    let mut right: Vec<u8> = polymer.clone();
     let mut left: Vec<u8> = Vec::with_capacity(right.len());
 
     loop {
@@ -28,11 +28,31 @@ fn part1() {
         }
 
     }
-    println!("{}", left.len());
+    left.len()
+}
+
+
+fn part1() {
+    let content = fs::read_to_string("input.txt").unwrap();
+    println!("{}", react(content.bytes().collect()));
 }
 
 
 fn part2() {
+    let content = fs::read_to_string("input.txt").unwrap();
+    let bytes: Vec<u8> = content.bytes().collect();
+    let candidates: HashSet<u8> = content.as_str().to_lowercase().bytes().collect();
+
+    let min = candidates.iter()
+                        .map(|candidate|
+                             react(bytes
+                                   .iter()
+                                   .cloned()
+                                   .filter(|c| c != candidate && *c != candidate ^ 32)
+                                   .collect()))
+                        .min()
+                        .unwrap();
+    println!("{}", min);
 }
 
 
