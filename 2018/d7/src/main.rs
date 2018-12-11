@@ -1,15 +1,13 @@
 extern crate regex;
 
-use std::collections::{BinaryHeap, BTreeMap, BTreeSet};
 use std::cmp::Ordering;
+use std::collections::{BTreeMap, BTreeSet, BinaryHeap};
 use std::env;
 use std::fs;
 
 use regex::Regex;
 
-
 static RULE_REGEX: &str = "Step (.) must be finished before step (.) can begin.";
-
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 struct MinChar(u8);
@@ -20,19 +18,14 @@ impl PartialOrd for MinChar {
     }
 }
 
-
 impl Ord for MinChar {
     fn cmp(&self, other: &Self) -> Ordering {
         self.0.cmp(&other.0).reverse()
     }
 }
 
-
-
-
 #[derive(Debug)]
 struct Rule(u8, u8);
-
 
 fn parse_rules(rules: &str) -> Vec<Rule> {
     rules
@@ -43,7 +36,6 @@ fn parse_rules(rules: &str) -> Vec<Rule> {
         })
         .collect()
 }
-
 
 #[derive(Clone, Debug)]
 struct CharGraph {
@@ -59,9 +51,9 @@ impl CharGraph {
         }
     }
 
-    fn from_rules<'a, I>(rules: I) -> CharGraph 
+    fn from_rules<'a, I>(rules: I) -> CharGraph
     where
-        I: Iterator<Item = &'a Rule>
+        I: Iterator<Item = &'a Rule>,
     {
         let mut g = CharGraph::new();
         for rule in rules {
@@ -81,13 +73,13 @@ impl CharGraph {
         self.rev_edges.get_mut(to).unwrap().remove(from);
     }
 
-    fn get_children(&self, node: &u8) -> BTreeSet<u8>{
+    fn get_children(&self, node: &u8) -> BTreeSet<u8> {
         self.edges
             .get(node)
             .map_or(BTreeSet::new(), |edges| edges.clone())
     }
 
-    fn get_parents(&self, node: &u8) -> BTreeSet<u8>{
+    fn get_parents(&self, node: &u8) -> BTreeSet<u8> {
         self.rev_edges
             .get(node)
             .map_or(BTreeSet::new(), |edges| edges.clone())
@@ -111,11 +103,8 @@ impl CharGraph {
         let mut graph = self.clone();
         let mut ordered: Vec<u8> = Vec::with_capacity(self.node_count());
 
-        let mut to_visit: BinaryHeap<MinChar> = graph
-            .find_roots()
-            .iter()
-            .map(|c| MinChar(*c))
-            .collect();
+        let mut to_visit: BinaryHeap<MinChar> =
+            graph.find_roots().iter().map(|c| MinChar(*c)).collect();
         loop {
             if let Some(MinChar(next)) = to_visit.pop() {
                 for to in graph.get_children(&next).iter() {
@@ -133,7 +122,6 @@ impl CharGraph {
     }
 }
 
-
 fn part1() {
     let content = fs::read_to_string("input.txt").unwrap();
     let rules = parse_rules(&content);
@@ -141,7 +129,6 @@ fn part1() {
     let graph = CharGraph::from_rules(rules.iter());
     println!("{}", String::from_utf8(graph.toposort()).unwrap());
 }
-
 
 fn get_cost(c: u8) -> usize {
     (c - b'A' + 1 + 60) as usize
@@ -163,9 +150,11 @@ fn part2() {
         let mut next_possible: Vec<u8> = sorted
             .iter()
             .cloned()
-            .filter(|j| !done.contains(j)
-                        && !assigned.contains(j)
-                        && graph.get_parents(j).difference(&done).next().is_none())
+            .filter(|j| {
+                !done.contains(j)
+                    && !assigned.contains(j)
+                    && graph.get_parents(j).difference(&done).next().is_none()
+            })
             .collect();
         next_possible.sort_unstable_by(|a, b| a.cmp(b).reverse());
 
@@ -173,14 +162,14 @@ fn part2() {
             .iter()
             .cloned()
             .enumerate()
-            .filter_map(|(i, w)| if w.is_none() {Some(i)} else {None})
+            .filter_map(|(i, w)| if w.is_none() { Some(i) } else { None })
             .collect();
 
         if next_possible.len() == 0 && free_workers.len() == 5 {
             break;
         }
 
-        for i in free_workers.iter(){
+        for i in free_workers.iter() {
             if let Some(job) = next_possible.pop() {
                 workers[*i] = Some((job, get_cost(job)));
                 assigned.insert(job);
@@ -192,13 +181,13 @@ fn part2() {
             .filter(|w| w.is_some())
             .min_by_key(|v| v.unwrap().1)
             .unwrap()
-            .unwrap(); 
+            .unwrap();
         total_time += tick;
 
         let assigned_workers: Vec<(usize, u8, usize)> = workers
             .iter()
             .enumerate()
-            .filter_map(|(i, &v)| match v{
+            .filter_map(|(i, &v)| match v {
                 None => None,
                 Some((job, w)) => Some((i, job, w)),
             })
@@ -220,11 +209,9 @@ fn part2() {
     println!("{}", total_time);
 }
 
-
 fn main() {
     match env::args().find(|arg| arg == "1") {
         Some(_) => part1(),
         None => part2(),
     };
 }
-

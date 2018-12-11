@@ -1,6 +1,6 @@
 extern crate regex;
 
-use std::collections::{BTreeSet};
+use std::collections::BTreeSet;
 use std::env;
 use std::fmt;
 use std::fs;
@@ -9,9 +9,7 @@ use std::str::FromStr;
 
 use regex::Regex;
 
-
 const POINT_REGEX: &str = r"^position=<\s*(.+),\s*(.+)> velocity=<\s*(.+),\s*(.+)>$";
-
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct Star {
@@ -33,14 +31,13 @@ impl Star {
     }
 }
 
-
 impl FromStr for Star {
     type Err = ParseIntError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let re = Regex::new(POINT_REGEX).unwrap();
         let captures = re.captures(s).unwrap();
-        Ok(Star{
+        Ok(Star {
             x: captures[1].parse::<i64>()?,
             y: captures[2].parse::<i64>()?,
             vx: captures[3].parse::<i64>()?,
@@ -49,12 +46,10 @@ impl FromStr for Star {
     }
 }
 
-
 struct State {
     time: usize,
     state: Vec<Star>,
 }
-
 
 impl State {
     fn tick_forwards(&mut self) {
@@ -71,28 +66,34 @@ impl State {
         self.time -= 1;
     }
 
-    fn centroid(&self) -> (i64, i64){
+    fn centroid(&self) -> (i64, i64) {
         let x = self.state.iter().map(|s| s.x).sum::<i64>() / self.state.len() as i64;
         let y = self.state.iter().map(|s| s.y).sum::<i64>() / self.state.len() as i64;
         (x, y)
     }
 
     fn avg_distance_to(&self, x: i64, y: i64) -> i64 {
-        self.state.iter().map(|s| (s.x - x).abs() + (s.y - y).abs()).sum()
+        self.state
+            .iter()
+            .map(|s| (s.x - x).abs() + (s.y - y).abs())
+            .sum()
     }
-
 }
-
 
 impl FromStr for State {
     type Err = ParseIntError;
 
     fn from_str(s: &str) -> Result<State, Self::Err> {
-        let state = s.lines().map(Star::from_str).collect::<Result<Vec<_>, _>>()?;
-        Ok(State{time: 0, state: state})
+        let state = s
+            .lines()
+            .map(Star::from_str)
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(State {
+            time: 0,
+            state: state,
+        })
     }
 }
-
 
 impl fmt::Display for State {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -103,12 +104,13 @@ impl fmt::Display for State {
         let max_x = self.state.iter().map(|s| s.x).max().unwrap();
         let max_y = self.state.iter().map(|s| s.y).max().unwrap();
 
-        let mut output: Vec<u8> = Vec::with_capacity((max_x - min_x + 1) as usize
-                                                     * (max_y - min_y + 1) as usize
-                                                     + (max_y - min_y) as usize
-                                                     + 1);
-        for y in min_y .. max_y + 1 {
-            for x in min_x .. max_x + 1 {
+        let mut output: Vec<u8> = Vec::with_capacity(
+            (max_x - min_x + 1) as usize * (max_y - min_y + 1) as usize
+                + (max_y - min_y) as usize
+                + 1,
+        );
+        for y in min_y..max_y + 1 {
+            for x in min_x..max_x + 1 {
                 if points.contains(&(x, y)) {
                     output.push(b'#');
                 } else {
@@ -121,7 +123,6 @@ impl fmt::Display for State {
         write!(f, "{}", String::from_utf8(output).unwrap())
     }
 }
-
 
 fn sim(input: &str) -> State {
     let content = fs::read_to_string(input).unwrap();
@@ -141,24 +142,20 @@ fn sim(input: &str) -> State {
             state.tick_backwards();
             break;
         }
-
     }
 
     state
 }
-
 
 fn part1(input: &str) {
     let state = sim(input);
     println!("{}", state);
 }
 
-
 fn part2(input: &str) {
     let state = sim(input);
     println!("{}", state.time);
 }
-
 
 fn main() {
     let args: Vec<_> = env::args().collect();
@@ -167,4 +164,3 @@ fn main() {
         _ => part2(args[2].as_str()),
     };
 }
-
