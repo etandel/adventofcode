@@ -2,8 +2,8 @@ use std::collections::HashSet;
 use std::env;
 use std::fs;
 
-fn react(polymer: Vec<u8>) -> usize {
-    let mut right: Vec<u8> = polymer.clone();
+fn react(polymer: &[u8]) -> usize {
+    let mut right: Vec<u8> = polymer.to_vec();
     let mut left: Vec<u8> = Vec::with_capacity(right.len());
 
     loop {
@@ -30,7 +30,7 @@ fn react(polymer: Vec<u8>) -> usize {
 
 fn part1() {
     let content = fs::read_to_string("input.txt").unwrap();
-    println!("{}", react(content.bytes().collect()));
+    println!("{}", react(&content.bytes().collect::<Vec<u8>>()));
 }
 
 fn part2() {
@@ -42,11 +42,11 @@ fn part2() {
         .iter()
         .map(|candidate| {
             react(
-                bytes
+                &bytes
                     .iter()
                     .cloned()
                     .filter(|c| c != candidate && *c != candidate ^ 32)
-                    .collect(),
+                    .collect::<Vec<u8>>(),
             )
         })
         .min()

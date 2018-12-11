@@ -42,8 +42,8 @@ struct Grid {
 impl Grid {
     fn new(width: usize, height: usize) -> Grid {
         Grid {
-            width: width,
-            height: height,
+            width,
+            height,
             grid: vec![None; width * height],
         }
     }
@@ -70,7 +70,7 @@ impl Grid {
     }
 }
 
-fn voronoi(grid: &mut Grid, points: &Vec<Point>) {
+fn voronoi(grid: &mut Grid, points: &[Point]) {
     for y in grid.iter_height() {
         for x in grid.iter_width() {
             let min_distance = points

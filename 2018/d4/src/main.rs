@@ -57,9 +57,9 @@ impl FromStr for LogEntry {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let caps = Regex::new(r"^\[(.+)\] (.+)$").unwrap().captures(s).unwrap();
         let datetime = Utc.datetime_from_str(&caps[1], "%Y-%m-%d %H:%M")?;
-        let log_type = if Regex::new("^falls").unwrap().is_match(&caps[2]) {
+        let log_type = if caps[2].starts_with("falls") {
             Log::FallsAsleep
-        } else if Regex::new("^wakes").unwrap().is_match(&caps[2]) {
+        } else if caps[2].starts_with("wakes") {
             Log::WakesUp
         } else {
             let id = Regex::new(r"^Guard #(\d+)")
@@ -71,7 +71,7 @@ impl FromStr for LogEntry {
         };
 
         Ok(LogEntry {
-            datetime: datetime,
+            datetime,
             log: log_type,
         })
     }
@@ -98,7 +98,7 @@ fn time_to_pos<T: TimeZone>(datetime: &DateTime<T>) -> usize {
 impl Guard {
     fn new(id: u16) -> Guard {
         Guard {
-            id: id,
+            id,
             states: Vec::new(),
             // From 23:00 to 00:59
             minutes: vec![0; 60],
@@ -107,22 +107,19 @@ impl Guard {
 
     fn push_state(&mut self, log_entry: &LogEntry) {
         let state = match &log_entry.log {
-            Log::NewShift(_) => GuardState::JustArrived(log_entry.datetime.clone()),
-            Log::WakesUp => GuardState::Awoken(log_entry.datetime.clone()),
-            Log::FallsAsleep => GuardState::Sleeping(log_entry.datetime.clone()),
+            Log::NewShift(_) => GuardState::JustArrived(log_entry.datetime),
+            Log::WakesUp => GuardState::Awoken(log_entry.datetime),
+            Log::FallsAsleep => GuardState::Sleeping(log_entry.datetime),
         };
         self.states.push(state);
     }
 
     fn set_minutes(&mut self) {
         for (before, after) in self.states.iter().zip(self.states[1..].iter()) {
-            match (before, after) {
-                (GuardState::Sleeping(start), GuardState::Awoken(end)) => {
-                    for i in time_to_pos(start)..time_to_pos(end) {
-                        self.minutes[i] += 1;
-                    }
+            if let (GuardState::Sleeping(start), GuardState::Awoken(end)) = (before, after) {
+                for i in time_to_pos(start)..time_to_pos(end) {
+                    self.minutes[i] += 1;
                 }
-                _ => {}
             }
         }
     }
@@ -159,7 +156,7 @@ where
 
         (*guards
             .entry(current_gid.unwrap())
-            .or_insert(Guard::new(current_gid.unwrap())))
+            .or_insert_with(|| Guard::new(current_gid.unwrap())))
         .push_state(&log);
     }
 
@@ -177,12 +174,9 @@ fn part1() {
     go(|g| g.minutes.iter().sum::<u16>());
 }
 
-fn get_max_min(guard: &&Guard) -> u16 {
-    *guard.minutes.iter().max().unwrap()
-}
 
 fn part2() {
-    go(get_max_min);
+    go(|g| *g.minutes.iter().max().unwrap());
 }
 
 fn main() {

@@ -64,29 +64,29 @@ impl CharGraph {
 
     fn add_edge(&mut self, rule: &Rule) {
         let Rule(from, to) = rule;
-        (*self.edges.entry(*from).or_insert(BTreeSet::new())).insert(*to);
-        (*self.rev_edges.entry(*to).or_insert(BTreeSet::new())).insert(*from);
+        (*self.edges.entry(*from).or_insert_with(BTreeSet::new)).insert(*to);
+        (*self.rev_edges.entry(*to).or_insert_with(BTreeSet::new)).insert(*from);
     }
 
-    fn remove_edge(&mut self, from: &u8, to: &u8) {
-        self.edges.get_mut(from).unwrap().remove(to);
-        self.rev_edges.get_mut(to).unwrap().remove(from);
+    fn remove_edge(&mut self, from: u8, to: u8) {
+        self.edges.get_mut(&from).unwrap().remove(&to);
+        self.rev_edges.get_mut(&to).unwrap().remove(&from);
     }
 
-    fn get_children(&self, node: &u8) -> BTreeSet<u8> {
+    fn get_children(&self, node: u8) -> BTreeSet<u8> {
         self.edges
-            .get(node)
+            .get(&node)
             .map_or(BTreeSet::new(), |edges| edges.clone())
     }
 
-    fn get_parents(&self, node: &u8) -> BTreeSet<u8> {
+    fn get_parents(&self, node: u8) -> BTreeSet<u8> {
         self.rev_edges
-            .get(node)
+            .get(&node)
             .map_or(BTreeSet::new(), |edges| edges.clone())
     }
 
-    fn is_root(&self, c: &u8) -> bool {
-        self.rev_edges.get(c).map_or(false, BTreeSet::is_empty)
+    fn is_root(&self, c: u8) -> bool {
+        self.rev_edges.get(&c).map_or(false, BTreeSet::is_empty)
     }
 
     fn find_roots(&self) -> Vec<u8> {
@@ -105,18 +105,14 @@ impl CharGraph {
 
         let mut to_visit: BinaryHeap<MinChar> =
             graph.find_roots().iter().map(|c| MinChar(*c)).collect();
-        loop {
-            if let Some(MinChar(next)) = to_visit.pop() {
-                for to in graph.get_children(&next).iter() {
-                    graph.remove_edge(&next, to);
-                    if graph.is_root(to) {
-                        to_visit.push(MinChar(*to));
-                    }
+        while let Some(MinChar(next)) = to_visit.pop() {
+            for &to in graph.get_children(next).iter() {
+                graph.remove_edge(next, to);
+                if graph.is_root(to) {
+                    to_visit.push(MinChar(to));
                 }
-                ordered.push(next);
-            } else {
-                break;
             }
+            ordered.push(next);
         }
         ordered
     }
@@ -150,9 +146,9 @@ fn part2() {
         let mut next_possible: Vec<u8> = sorted
             .iter()
             .cloned()
-            .filter(|j| {
-                !done.contains(j)
-                    && !assigned.contains(j)
+            .filter(|&j| {
+                !done.contains(&j)
+                    && !assigned.contains(&j)
                     && graph.get_parents(j).difference(&done).next().is_none()
             })
             .collect();
@@ -165,7 +161,7 @@ fn part2() {
             .filter_map(|(i, w)| if w.is_none() { Some(i) } else { None })
             .collect();
 
-        if next_possible.len() == 0 && free_workers.len() == 5 {
+        if next_possible.is_empty() && free_workers.len() == 5 {
             break;
         }
 

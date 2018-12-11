@@ -89,8 +89,8 @@ impl FromStr for State {
             .map(Star::from_str)
             .collect::<Result<Vec<_>, _>>()?;
         Ok(State {
+            state,
             time: 0,
-            state: state,
         })
     }
 }
@@ -109,8 +109,8 @@ impl fmt::Display for State {
                 + (max_y - min_y) as usize
                 + 1,
         );
-        for y in min_y..max_y + 1 {
-            for x in min_x..max_x + 1 {
+        for y in min_y..=max_y {
+            for x in min_x..=max_x {
                 if points.contains(&(x, y)) {
                     output.push(b'#');
                 } else {

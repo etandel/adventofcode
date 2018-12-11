@@ -7,14 +7,14 @@ fn count_chars(box_id: &str) -> BTreeMap<char, u32> {
     for c in box_id.chars() {
         *count.entry(c).or_insert(0) += 1;
     }
-    return count;
+    count
 }
 
 fn has_exactly(n: u32, count: &BTreeMap<char, u32>) -> bool {
-    count.values().find(|&&c| c == n).is_some()
+    count.values().any(|&c| c == n)
 }
 
-fn count_exactly(n: u32, counts: &Vec<BTreeMap<char, u32>>) -> usize {
+fn count_exactly(n: u32, counts: &[BTreeMap<char, u32>]) -> usize {
     counts.iter().filter(|count| has_exactly(n, &count)).count()
 }
 
