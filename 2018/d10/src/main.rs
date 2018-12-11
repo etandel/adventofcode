@@ -1,7 +1,8 @@
 extern crate regex;
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeSet};
 use std::env;
+use std::fmt;
 use std::fs;
 use std::num::ParseIntError;
 use std::str::FromStr;
@@ -49,96 +50,113 @@ impl FromStr for Star {
 }
 
 
-fn read_points<'a>(raw_points: &'a str) -> impl Iterator<Item = Result<Star, ParseIntError>> + 'a {
-    raw_points.lines().map(Star::from_str)
+struct State {
+    time: usize,
+    state: Vec<Star>,
 }
 
 
-fn tick_forwards(state: &mut Vec<Star>) {
-    for i in 0..state.len() {
-        state[i].tick_forwards();
+impl State {
+    fn tick_forwards(&mut self) {
+        for star in self.state.iter_mut() {
+            star.tick_forwards();
+        }
+        self.time += 1;
+    }
+
+    fn tick_backwards(&mut self) {
+        for star in self.state.iter_mut() {
+            star.tick_backwards();
+        }
+        self.time -= 1;
+    }
+
+    fn centroid(&self) -> (i64, i64){
+        let x = self.state.iter().map(|s| s.x).sum::<i64>() / self.state.len() as i64;
+        let y = self.state.iter().map(|s| s.y).sum::<i64>() / self.state.len() as i64;
+        (x, y)
+    }
+
+    fn avg_distance_to(&self, x: i64, y: i64) -> i64 {
+        self.state.iter().map(|s| (s.x - x).abs() + (s.y - y).abs()).sum()
+    }
+
+}
+
+
+impl FromStr for State {
+    type Err = ParseIntError;
+
+    fn from_str(s: &str) -> Result<State, Self::Err> {
+        let state = s.lines().map(Star::from_str).collect::<Result<Vec<_>, _>>()?;
+        Ok(State{time: 0, state: state})
     }
 }
 
 
-fn tick_backwards(state: &mut Vec<Star>) {
-    for i in 0..state.len() {
-        state[i].tick_backwards();
+impl fmt::Display for State {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let points: BTreeSet<(i64, i64)> = self.state.iter().map(|s| (s.x, s.y)).collect();
+
+        let min_x = self.state.iter().map(|s| s.x).min().unwrap();
+        let min_y = self.state.iter().map(|s| s.y).min().unwrap();
+        let max_x = self.state.iter().map(|s| s.x).max().unwrap();
+        let max_y = self.state.iter().map(|s| s.y).max().unwrap();
+
+        let mut output: Vec<u8> = Vec::with_capacity((max_x - min_x + 1) as usize
+                                                     * (max_y - min_y + 1) as usize
+                                                     + (max_y - min_y) as usize
+                                                     + 1);
+        for y in min_y .. max_y + 1 {
+            for x in min_x .. max_x + 1 {
+                if points.contains(&(x, y)) {
+                    output.push(b'#');
+                } else {
+                    output.push(b'.');
+                }
+            }
+            output.push(b'\n');
+        }
+
+        write!(f, "{}", String::from_utf8(output).unwrap())
     }
 }
 
-fn centroid(state: &Vec<Star>) -> (i64, i64){
-    let x = state.iter().map(|s| s.x).sum::<i64>() / state.len() as i64;
-    let y = state.iter().map(|s| s.y).sum::<i64>() / state.len() as i64;
-    (x, y)
-}
 
-
-fn avg_distance_to(state: &Vec<Star>, x: i64, y: i64) -> i64 {
-    state.iter().map(|s| (s.x - x).abs() + (s.y - y).abs()).sum()
-}
-
-
-fn sim(input: &str) -> (usize, String) {
+fn sim(input: &str) -> State {
     let content = fs::read_to_string(input).unwrap();
-    let mut state: Vec<Star> = read_points(&content).collect::<Result<Vec<_>, _>>().unwrap();
+    let mut state = State::from_str(&content).unwrap();
 
-    let mut n_steps: usize = 0;
-    let (cx, cy) = centroid(&state);
-    let mut min_distance = avg_distance_to(&state, cx, cy);
+    let (cx, cy) = state.centroid();
+    let mut min_distance = state.avg_distance_to(cx, cy);
     loop {
-        tick_forwards(&mut state);
-        n_steps += 1;
+        state.tick_forwards();
 
-        let (cx, cy) = centroid(&state);
-        let new_distance = avg_distance_to(&state, cx, cy);
+        let (cx, cy) = state.centroid();
+        let new_distance = state.avg_distance_to(cx, cy);
 
         if new_distance <= min_distance {
             min_distance = new_distance;
         } else {
-            tick_backwards(&mut state);
-            n_steps -= 1;
+            state.tick_backwards();
             break;
         }
 
     }
 
-    let points: BTreeSet<(i64, i64)> = state.iter().map(|s| (s.x, s.y)).collect();
-
-
-    let min_x = state.iter().map(|s| s.x).min().unwrap();
-    let min_y = state.iter().map(|s| s.y).min().unwrap();
-    let max_x = state.iter().map(|s| s.x).max().unwrap();
-    let max_y = state.iter().map(|s| s.y).max().unwrap();
-
-    let mut output: Vec<u8> = Vec::with_capacity((max_x - min_x + 1) as usize
-                                                 * (max_y - min_y + 1) as usize
-                                                 + (max_y - min_y) as usize
-                                                 + 1);
-    for y in min_y .. max_y + 1 {
-        for x in min_x .. max_x + 1 { 
-            if points.contains(&(x, y)) {
-                output.push(b'#');
-            } else {
-                output.push(b'.');
-            }
-        }
-        output.push(b'\n');
-    }
-
-    (n_steps, String::from_utf8(output).unwrap())
+    state
 }
 
 
 fn part1(input: &str) {
-    let (_, output) = sim(input);
-    println!("{}", output);
+    let state = sim(input);
+    println!("{}", state);
 }
 
 
 fn part2(input: &str) {
-    let (count, _) = sim(input);
-    println!("{}", count);
+    let state = sim(input);
+    println!("{}", state.time);
 }
 
 
