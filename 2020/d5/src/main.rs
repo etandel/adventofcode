@@ -1,5 +1,7 @@
+use std::collections::HashSet;
 use std::env;
 use std::fs;
+use std::path::Path;
 
 type Seat = (u16, u16);
 
@@ -28,19 +30,40 @@ fn calc_id((row, col): Seat) -> u16 {
     row * 8 + col
 }
 
-fn part1() {
-    let max = fs::read_to_string("input.txt")
+fn parse_ids<P>(path: P) -> Vec<u16>
+where
+    P: AsRef<Path>,
+{
+    fs::read_to_string(path)
         .unwrap()
         .lines()
         .map(calc_seat)
         .map(calc_id)
-        .max()
-        .unwrap();
+        .collect()
+}
+
+fn part1() {
+    let max = parse_ids("input.txt").iter().max().unwrap().to_owned();
     println!("{}", max);
 }
 
 fn part2() {
-    todo!()
+    let ids: HashSet<_> = parse_ids("input.txt").iter().copied().collect();
+    let expected_ids: HashSet<u16> = (1..=127 * 8 + 7).collect();
+
+    let mut missing: Vec<u16> = expected_ids.difference(&ids).copied().collect();
+
+    missing.sort();
+
+    let got = missing
+        .iter()
+        .zip(missing.iter().skip(1))
+        .skip_while(|(&x1, &x2)| x2 == x1 + 1)
+        .next()
+        .unwrap()
+        .1;
+
+    println!("{}", got);
 }
 
 fn main() {
