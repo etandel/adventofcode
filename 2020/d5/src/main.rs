@@ -3,24 +3,25 @@ use std::fs;
 
 type Seat = (u16, u16);
 
+fn iterate(seq: &str, lower_char: char, upper_bound: f64) -> u16 {
+    let range = seq
+        .chars()
+        .fold((0.0f64, upper_bound), |(lower, upper), c| {
+            if c == lower_char {
+                (lower, (lower + (upper - lower) / 2.0).floor())
+            } else {
+                ((lower + (upper - lower) / 2.0).ceil(), upper)
+            }
+        });
+
+    range.0 as u16
+}
+
 fn calc_seat(raw_seat: &str) -> Seat {
-    let row_range = raw_seat[0..=6].chars().fold((0.0f64, 127.0f64), |(lower, upper), c| {
-        if c == 'F' {
-            (lower, (lower + (upper - lower) / 2.0).floor())
-        } else {
-            ((lower + (upper - lower) / 2.0).ceil(), upper)
-        }
-    });
-
-    let seat_range = raw_seat[7..=9].chars().fold((0f64, 7f64), |(lower, upper), c| {
-        if c == 'L' {
-            (lower, (lower + (upper - lower) / 2.0).floor())
-        } else {
-            ((lower + (upper - lower) / 2.0).ceil(), upper)
-        }
-    });
-
-    (row_range.0 as u16, seat_range.0 as u16)
+    (
+        iterate(&raw_seat[0..=6], 'F', 127.0f64),
+        iterate(&raw_seat[7..=9], 'L', 7.0f64),
+    )
 }
 
 fn calc_id((row, col): Seat) -> u16 {
