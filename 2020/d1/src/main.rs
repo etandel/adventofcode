@@ -15,7 +15,7 @@ fn part1() {
     expenses.sort();
 
     'outer: for (i, val1) in expenses.iter().enumerate() {
-        for val2 in expenses.iter().skip(i) {
+        for val2 in expenses[i+1..].iter() {
             if val1 + val2 == 2020 {
                 result = Some(val1 * val2);
                 break 'outer;
@@ -42,8 +42,8 @@ fn part2() {
     expenses.sort();
 
     'outer: for (i, val1) in expenses.iter().enumerate() {
-        for val2 in expenses.iter().skip(i) {
-            for val3 in expenses.iter().skip(i) {
+        for val2 in expenses[i+1..].iter() {
+            for val3 in expenses[i+2..].iter() {
                 if val1 + val2 + val3 == 2020 {
                     result = Some(val1 * val2 * val3);
                     break 'outer;
