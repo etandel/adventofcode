@@ -8,10 +8,16 @@ use std::str::FromStr;
 use lazy_static::lazy_static;
 use regex::Regex;
 
+#[derive(Debug, PartialEq, Eq, Hash)]
+struct BagCount {
+    name: String,
+    count: u64,
+}
+
 #[derive(Debug, Default, PartialEq, Eq)]
 struct Rule {
     bag_name: String,
-    contains: Vec<String>,
+    contains: Vec<BagCount>,
 }
 
 impl FromStr for Rule {
@@ -28,14 +34,64 @@ impl FromStr for Rule {
 
         let contains = CONTAIN_RE
             .captures_iter(raw_contain.as_str())
-            .map(|c| c.get(2).unwrap().as_str().into())
-            .collect::<Vec<String>>();
+            .map(|c| BagCount {
+                name: c.get(2).unwrap().as_str().into(),
+                count: u64::from_str(c.get(1).unwrap().as_str()).unwrap(),
+            })
+            .collect();
 
         Ok(Self { bag_name, contains })
     }
 }
 
 type RuleSet = Vec<Rule>;
+
+#[derive(Debug, Default)]
+struct Dependencies(HashMap<String, HashSet<BagCount>>);
+
+impl Dependencies {
+    fn new() -> Self {
+        Self::default()
+    }
+
+    fn push_dep(&mut self, contained: BagCount, bag_name: String) {
+        let depends_on = self.0.entry(bag_name).or_default();
+        (*depends_on).insert(contained);
+    }
+
+    fn sum_sub_bags(&self, from: String) -> u64 {
+        let mut to_see_queue = Vec::with_capacity(self.0.len());
+
+        to_see_queue.push((1, from));
+
+        let mut total = 0;
+        while let Some((parent_count, next)) = to_see_queue.pop() {
+            total += parent_count;
+            if let Some(bags) = self.0.get(&next) {
+                for bag in bags {
+                    to_see_queue.push((parent_count * bag.count, bag.name.clone()));
+                }
+            }
+        }
+
+        total - 1
+    }
+}
+
+impl From<RuleSet> for Dependencies {
+    fn from(ruleset: RuleSet) -> Self {
+        let mut deps = Self::new();
+
+        for rule in ruleset {
+            let bag_name = rule.bag_name;
+            for contain in rule.contains {
+                deps.push_dep(contain, bag_name.clone());
+            }
+        }
+
+        deps
+    }
+}
 
 #[derive(Debug, Default)]
 struct ReverseDependencies(HashMap<String, HashSet<String>>);
@@ -45,8 +101,8 @@ impl ReverseDependencies {
         Self::default()
     }
 
-    fn push_dep(&mut self, contained: String, bag_name: String) {
-        let depends_on = self.0.entry(contained).or_default();
+    fn push_dep(&mut self, contained: &BagCount, bag_name: String) {
+        let depends_on = self.0.entry(contained.name.clone()).or_default();
         (*depends_on).insert(bag_name);
     }
 
@@ -79,7 +135,7 @@ impl From<RuleSet> for ReverseDependencies {
             let bag_name = rule.bag_name;
 
             for contain in &rule.contains {
-                deps.push_dep(contain.to_string(), bag_name.clone());
+                deps.push_dep(contain, bag_name.clone());
             }
         }
 
@@ -106,7 +162,9 @@ fn part1() {
 }
 
 fn part2() {
-    todo!()
+    let res = Dependencies::from(parse_rule_set("input.txt")).sum_sub_bags("shiny gold".into());
+
+    println!("{}", res);
 }
 
 fn main() {
@@ -134,14 +192,26 @@ mod tests {
         let s = "bright white bags contain 1 shiny gold bag.";
         let expected = Rule {
             bag_name: "bright white".into(),
-            contains: vec!["shiny gold".into()],
+            contains: vec![BagCount {
+                name: "shiny gold".into(),
+                count: 1,
+            }],
         };
         assert!(Rule::from_str(s) == Ok(expected));
 
         let s = "muted yellow bags contain 2 shiny gold bags, 9 faded blue bags.";
         let expected = Rule {
             bag_name: "muted yellow".into(),
-            contains: vec!["shiny gold".into(), "faded blue".into()],
+            contains: vec![
+                BagCount {
+                    name: "shiny gold".into(),
+                    count: 2,
+                },
+                BagCount {
+                    name: "faded blue".into(),
+                    count: 9,
+                },
+            ],
         };
         assert!(Rule::from_str(s) == Ok(expected));
     }
