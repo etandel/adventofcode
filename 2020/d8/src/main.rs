@@ -4,7 +4,7 @@ use std::fs;
 use std::path::Path;
 use std::str::FromStr;
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 enum Instruction {
     Nop(i64),
     Acc(i64),
@@ -29,52 +29,104 @@ impl FromStr for Instruction {
     }
 }
 
-type Program = Vec<Instruction>;
+#[derive(Debug)]
+struct Program(Vec<Instruction>);
 
-fn parse_program<P>(path: P) -> Program
-where
-    P: AsRef<Path>,
-{
-    fs::read_to_string(path)
-        .unwrap()
-        .lines()
-        .map(|l| Instruction::from_str(l).unwrap())
-        .collect()
+impl FromStr for Program {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, <Self as FromStr>::Err> {
+        Ok(Self(
+            s.lines()
+                .map(|l| Instruction::from_str(l).unwrap())
+                .collect(),
+        ))
+    }
 }
 
-fn part1() {
-    let program = parse_program("input.txt");
+impl Program {
+    fn from_path<P>(path: P) -> Self
+    where
+        P: AsRef<Path>,
+    {
+        Self::from_str(&fs::read_to_string(path).unwrap()).unwrap()
+    }
 
-    let mut seen: HashSet<usize> = HashSet::with_capacity(program.len());
+    fn len(&self) -> usize {
+        self.0.len()
+    }
 
-    let mut acc = 0;
-    let mut instruction_pointer = 0;
+    fn iter(&self) -> std::slice::Iter<'_, Instruction> {
+        self.0.iter()
+    }
 
-    while !seen.contains(&instruction_pointer) {
-        seen.insert(instruction_pointer);
+    fn toggle_instruction(&self, instruction: usize) -> Self {
+        let mut new_vec = self.0.clone();
 
-        match program[instruction_pointer] {
-            Instruction::Nop(_) => instruction_pointer += 1,
-            Instruction::Acc(val) => {
-                acc += val;
-                instruction_pointer += 1;
+        new_vec[instruction] = match new_vec[instruction] {
+            Instruction::Nop(v) => Instruction::Jmp(v),
+            Instruction::Jmp(v) => Instruction::Nop(v),
+            x => x,
+        };
+
+        Self(new_vec)
+    }
+
+    fn execute(&self) -> (i64, bool) {
+        let mut seen: HashSet<i64> = HashSet::with_capacity(self.len());
+
+        let mut acc = 0;
+        let mut instruction_pointer = 0i64;
+
+        loop {
+            if seen.contains(&instruction_pointer) {
+                return (acc, false);
+            } else if instruction_pointer == self.len() as i64 {
+                return (acc, true);
+            } else if instruction_pointer > self.len() as i64 || instruction_pointer < 0 {
+                return (acc, false);
             }
-            Instruction::Jmp(delta) => {
-                //dbg!(program.len(), instruction_pointer, delta);
-                if delta > 0 {
-                    instruction_pointer += delta.abs() as usize;
-                } else {
-                    instruction_pointer -= delta.abs() as usize;
+
+            seen.insert(instruction_pointer);
+
+            instruction_pointer += match self.0[instruction_pointer as usize] {
+                Instruction::Nop(_) => 1,
+                Instruction::Acc(val) => {
+                    acc += val;
+                    1
                 }
+                Instruction::Jmp(delta) => delta,
             }
         }
     }
+}
 
+fn part1() {
+    let (acc, _) = Program::from_path("input.txt").execute();
     println!("{}", acc);
 }
 
 fn part2() {
-    todo!()
+    let base_program = Program::from_path("input.txt");
+
+    let acc = base_program
+        .iter()
+        .enumerate()
+        .find_map(|(i, inst)| match inst {
+            Instruction::Nop(_) | Instruction::Jmp(_) => {
+                let (acc, ok) = base_program.toggle_instruction(i).execute();
+
+                if ok {
+                    Some(acc)
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        })
+        .unwrap();
+
+    println!("{}", acc);
 }
 
 fn main() {
