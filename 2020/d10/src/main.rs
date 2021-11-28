@@ -4,6 +4,7 @@ use std::path::Path;
 use std::str::FromStr;
 
 use itertools::Itertools;
+use ndarray::{Array, Dim};
 
 type Adapter = u64;
 
@@ -32,8 +33,44 @@ fn part1() {
     println!("{}", res);
 }
 
+fn build_adjancy_matrix(nodes: &Vec<Adapter>) -> Array<Adapter, Dim<[usize; 2]>> {
+    let n = nodes.len();
+    let mut m = Array::zeros((n, n));
+    let indexed: Vec<(usize, Adapter)> = nodes.iter().copied().enumerate().collect();
+
+    for (i, from) in &indexed[..] {
+        for (j, to) in &indexed[i + 1..] {
+            if from + 3 < *to {
+                break;
+            }
+
+            m[[*i, *j]] = 1;
+        }
+    }
+    m[[n - 1, n - 1]] = 1;
+    m
+}
+
 fn part2() {
-    todo!()
+    let adapters = parse_adapters("input.txt");
+
+    let nodes: Vec<Adapter> = {
+        let mut nodes = Vec::with_capacity(adapters.len() + 2);
+        nodes.extend((0..1).chain(adapters.iter().copied()));
+        nodes.push(nodes.last().unwrap() + 3);
+        nodes
+    };
+
+    let mut m = build_adjancy_matrix(&nodes);
+
+    while {
+        let m2 = m.clone();
+        m = m.dot(&m);
+
+        m2 != m
+    } {}
+
+    println!("{}", m[[0, nodes.len() - 1]]);
 }
 
 fn main() {
