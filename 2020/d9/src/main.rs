@@ -59,11 +59,10 @@ fn part2() {
     let mut found: Option<Packet> = None;
 
     'outer: for chunk_size in 2..stream.len() {
-        for i in 0..=stream.len() - chunk_size {
-            let chunk = &stream[i..i + chunk_size];
-            if chunk.iter().sum::<Packet>() == invalid {
+        for window in stream.windows(chunk_size) {
+            if window.iter().sum::<Packet>() == invalid {
                 let val =
-                    chunk.iter().copied().min().unwrap() + chunk.iter().copied().max().unwrap();
+                    window.iter().copied().min().unwrap() + window.iter().copied().max().unwrap();
                 found = Some(val);
                 break 'outer;
             }
