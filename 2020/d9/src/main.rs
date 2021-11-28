@@ -1,4 +1,4 @@
-use std::collections::{HashSet, VecDeque};
+use std::collections::VecDeque;
 use std::env;
 use std::fs;
 use std::path::Path;
@@ -21,24 +21,22 @@ where
         .collect()
 }
 
-fn allowed_values(preamble: &Preamble) -> HashSet<Packet> {
+fn preamble_allows(preamble: &Preamble, value: Packet) -> bool {
     preamble
         .iter()
         .combinations(2)
         .map(|v| v.iter().copied().sum())
-        .collect()
+        .find(|&s: &Packet| s == value)
+        .is_some()
 }
 
-fn part1() {
-    const STREAM_SIZE: usize = 25;
-    let stream = parse_stream("input.txt");
-
-    let mut preamble: VecDeque<Packet> = stream.iter().take(STREAM_SIZE).copied().collect();
+fn find_invalid_number(stream: &Stream, preamble_size: usize) -> Option<Packet> {
+    let mut preamble: VecDeque<Packet> = stream.iter().take(preamble_size).copied().collect();
 
     let mut found: Option<Packet> = None;
 
-    for &packet in stream.iter().skip(STREAM_SIZE) {
-        if !allowed_values(&preamble).contains(&packet) {
+    for &packet in stream.iter().skip(preamble_size) {
+        if !preamble_allows(&preamble, packet) {
             found = Some(packet);
             break;
         }
@@ -46,7 +44,12 @@ fn part1() {
         preamble.push_back(packet)
     }
 
-    println!("{}", found.unwrap());
+    found
+}
+
+fn part1() {
+    let invalid = find_invalid_number(&parse_stream("input.txt"), 25);
+    println!("{}", invalid.unwrap());
 }
 
 fn part2() {
