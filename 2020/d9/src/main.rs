@@ -53,7 +53,24 @@ fn part1() {
 }
 
 fn part2() {
-    todo!()
+    let stream = parse_stream("input.txt");
+    let invalid = find_invalid_number(&stream, 25).unwrap();
+
+    let mut found: Option<Packet> = None;
+
+    'outer: for chunk_size in 2..stream.len() {
+        for i in 0..=stream.len() - chunk_size {
+            let chunk = &stream[i..i + chunk_size];
+            if chunk.iter().sum::<Packet>() == invalid {
+                let val =
+                    chunk.iter().copied().min().unwrap() + chunk.iter().copied().max().unwrap();
+                found = Some(val);
+                break 'outer;
+            }
+        }
+    }
+
+    println!("{}", found.unwrap());
 }
 
 fn main() {
