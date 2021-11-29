@@ -72,7 +72,7 @@ impl State {
         (x, y)
     }
 
-    fn avg_distance_to(&self, x: i64, y: i64) -> i64 {
+    fn total_distance_to(&self, (x, y): (i64, i64)) -> i64 {
         self.state
             .iter()
             .map(|s| (s.x - x).abs() + (s.y - y).abs())
@@ -88,10 +88,7 @@ impl FromStr for State {
             .lines()
             .map(Star::from_str)
             .collect::<Result<Vec<_>, _>>()?;
-        Ok(State {
-            state,
-            time: 0,
-        })
+        Ok(State { state, time: 0 })
     }
 }
 
@@ -104,7 +101,7 @@ impl fmt::Display for State {
         let max_x = self.state.iter().map(|s| s.x).max().unwrap();
         let max_y = self.state.iter().map(|s| s.y).max().unwrap();
 
-        let mut output: Vec<u8> = Vec::with_capacity(
+        let mut output = String::with_capacity(
             (max_x - min_x + 1) as usize * (max_y - min_y + 1) as usize
                 + (max_y - min_y) as usize
                 + 1,
@@ -112,15 +109,15 @@ impl fmt::Display for State {
         for y in min_y..=max_y {
             for x in min_x..=max_x {
                 if points.contains(&(x, y)) {
-                    output.push(b'#');
+                    output.push('#');
                 } else {
-                    output.push(b'.');
+                    output.push('.');
                 }
             }
-            output.push(b'\n');
+            output.push('\n');
         }
 
-        write!(f, "{}", String::from_utf8(output).unwrap())
+        write!(f, "{}", output)
     }
 }
 
@@ -128,16 +125,14 @@ fn sim(input: &str) -> State {
     let content = fs::read_to_string(input).unwrap();
     let mut state = State::from_str(&content).unwrap();
 
-    let (cx, cy) = state.centroid();
-    let mut min_distance = state.avg_distance_to(cx, cy);
+    let mut min_total_distance = state.total_distance_to(state.centroid());
     loop {
         state.tick_forwards();
 
-        let (cx, cy) = state.centroid();
-        let new_distance = state.avg_distance_to(cx, cy);
+        let new_distance = state.total_distance_to(state.centroid());
 
-        if new_distance <= min_distance {
-            min_distance = new_distance;
+        if new_distance <= min_total_distance {
+            min_total_distance = new_distance;
         } else {
             state.tick_backwards();
             break;
