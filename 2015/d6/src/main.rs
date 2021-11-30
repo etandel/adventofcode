@@ -24,24 +24,26 @@ impl FromStr for Op {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-enum State {
-    On,
-    Off,
-}
+struct Bulb(usize);
 
-impl State {
-    fn exec(&self, op: &Op) -> State {
+impl Bulb {
+    fn is_lit(&self) -> bool {
+        self.0 > 0
+    }
+
+    fn exec_1(&self, op: &Op) -> Self {
         match op {
-            Op::TurnOn => State::On,
-            Op::TurnOff => State::Off,
-            Op::Toggle => self.toggle(),
+            Op::TurnOn => Self(1),
+            Op::TurnOff => Self(0),
+            Op::Toggle => Self(self.0 ^ 1),
         }
     }
 
-    fn toggle(&self) -> State {
-        match self {
-            State::On => State::Off,
-            State::Off => State::On,
+    fn exec_2(&self, op: &Op) -> Self {
+        match op {
+            Op::TurnOn => Self(self.0 + 1),
+            Op::TurnOff => Self(self.0.saturating_sub(1)),
+            Op::Toggle => Self(self.0 + 2),
         }
     }
 }
@@ -84,7 +86,7 @@ impl FromStr for Instruction {
 }
 
 struct Grid {
-    grid: Vec<State>,
+    grid: Vec<Bulb>,
 }
 
 impl Grid {
@@ -92,7 +94,7 @@ impl Grid {
 
     fn new() -> Self {
         Self {
-            grid: vec![State::Off; Self::LEN * Self::LEN],
+            grid: vec![Bulb(0); Self::LEN * Self::LEN],
         }
     }
 
@@ -104,19 +106,44 @@ impl Grid {
         row * Self::LEN + col
     }
 
-    fn get(&self, point: Point) -> &State {
+    fn get(&self, point: Point) -> &Bulb {
         &self.grid[self.get_index(point)]
     }
 
-    fn update_point(&mut self, point: Point, op: &Op) {
-        let i = self.get_index(point);
-        self.grid[i] = self.grid[i].exec(op);
+    fn execute_instruction<F>(&mut self, Instruction { op, rect }: Instruction, executor: F)
+    where
+        F: Fn(&Bulb, &Op) -> Bulb,
+    {
+        for point in self.points(rect) {
+            let i = self.get_index(point);
+            self.grid[i] = executor(&self.grid[i], &op);
+        }
     }
 
-    fn execute_instruction(&mut self, Instruction { op, rect }: Instruction) {
-        for point in self.points(rect) {
-            self.update_point(point, &op);
+    fn from_instructions<I, F>(instructions: I, executor: &F) -> Self
+    where
+        I: IntoIterator<Item = Instruction>,
+        F: Fn(&Bulb, &Op) -> Bulb,
+    {
+        let mut grid = Self::new();
+        for inst in instructions {
+            grid.execute_instruction(inst, executor);
         }
+        grid
+    }
+
+    fn count_lit(&self) -> usize {
+        self.points(((0, 0), (Grid::LEN - 1, Grid::LEN - 1)))
+            .map(|p| self.get(p))
+            .copied()
+            .filter(Bulb::is_lit)
+            .count()
+    }
+
+    fn total_brightness(&self) -> usize {
+        self.points(((0, 0), (Grid::LEN - 1, Grid::LEN - 1)))
+            .map(|p| self.get(p).0)
+            .sum::<usize>()
     }
 }
 
@@ -134,23 +161,16 @@ where
 
 fn part1() {
     let instructions = parse_instructions("input.txt");
-    let mut grid = Grid::new();
-
-    for inst in instructions {
-        grid.execute_instruction(inst);
-    }
-
-    let res = grid
-        .points(((0, 0), (Grid::LEN - 1, Grid::LEN - 1)))
-        .map(|p| grid.get(p))
-        .filter(|s| **s == State::On)
-        .count();
+    let res = Grid::from_instructions(instructions, &Bulb::exec_1).count_lit();
 
     println!("{}", res);
 }
 
 fn part2() {
-    todo!()
+    let instructions = parse_instructions("input.txt");
+    let res = Grid::from_instructions(instructions, &Bulb::exec_2).total_brightness();
+
+    println!("{}", res);
 }
 
 fn main() {
