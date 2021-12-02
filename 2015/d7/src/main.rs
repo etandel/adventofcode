@@ -57,14 +57,14 @@ struct Circuit {
 }
 
 impl Circuit {
-    fn with_capacity(cap: usize) -> Self {
+    pub fn with_capacity(cap: usize) -> Self {
         Self {
             signals: HashMap::with_capacity(cap),
             gates_by_output: HashMap::with_capacity(cap),
         }
     }
 
-    fn push_gate(&mut self, gate: Gate) {
+    pub fn push_gate(&mut self, gate: Gate) {
         let output = match gate {
             Gate::And(_, _, ref output) => output,
             Gate::Or(_, _, ref output) => output,
@@ -77,22 +77,16 @@ impl Circuit {
 
         self.gates_by_output.insert(output.to_string(), gate);
     }
-}
 
-struct Sim {
-    circuit: Circuit,
-}
-
-impl Sim {
     fn get_signal_for_cached<'a>(
         &'a self,
-        cache: &mut HashMap<&'a String, Sig>,
-        wire: &'a String,
+        cache: &mut HashMap<&'a str, Sig>,
+        wire: &'a str,
     ) -> Sig {
         if let Some(cached) = cache.get(wire) {
             *cached
         } else {
-            let got = self.circuit.gates_by_output.get(wire);
+            let got = self.gates_by_output.get(wire);
             let sig = match got {
                 Some(w) => match w {
                     Gate::And(w1, w2, _) => {
@@ -122,13 +116,17 @@ impl Sim {
         }
     }
 
-    fn get_signal(&self, wire: &String) -> Sig {
-        let mut cache = HashMap::with_capacity(self.circuit.gates_by_output.len());
+    pub fn get_signal(&self, wire: &str) -> Sig {
+        let mut cache = HashMap::with_capacity(self.gates_by_output.len());
         self.get_signal_for_cached(&mut cache, wire)
     }
 
-    fn get_signal_with_override(&self, wire: &String, _override@(overriden_w, overriden_sig): (&String, Sig)) -> Sig {
-        let mut cache = HashMap::with_capacity(self.circuit.gates_by_output.len());
+    pub fn get_signal_with_override(
+        &self,
+        wire: &str,
+        _override @ (overriden_w, overriden_sig): (&str, Sig),
+    ) -> Sig {
+        let mut cache = HashMap::with_capacity(self.gates_by_output.len());
         cache.insert(overriden_w, overriden_sig);
         self.get_signal_for_cached(&mut cache, wire)
     }
@@ -151,17 +149,14 @@ where
 }
 
 fn part1() {
-    let circuit = parse_circuit("input.txt");
-    let sim = Sim { circuit };
-    let res = sim.get_signal(&"a".to_string());
+    let res = parse_circuit("input.txt").get_signal(&"a".to_string());
     println!("{}", res);
 }
 
 fn part2() {
     let circuit = parse_circuit("input.txt");
-    let sim = Sim { circuit };
-    let a_sig = sim.get_signal(&"a".to_string());
-    let res = sim.get_signal_with_override(&"a".to_string(), (&"b".to_string(), a_sig));
+    let a_sig = circuit.get_signal(&"a".to_string());
+    let res = circuit.get_signal_with_override("a", ("b", a_sig));
     println!("{}", res);
 }
 
