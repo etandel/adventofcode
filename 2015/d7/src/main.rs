@@ -121,8 +121,15 @@ impl Sim {
             sig
         }
     }
-    fn get_signal_for(&self, wire: &String) -> Sig {
+
+    fn get_signal(&self, wire: &String) -> Sig {
         let mut cache = HashMap::with_capacity(self.circuit.gates_by_output.len());
+        self.get_signal_for_cached(&mut cache, wire)
+    }
+
+    fn get_signal_with_override(&self, wire: &String, _override@(overriden_w, overriden_sig): (&String, Sig)) -> Sig {
+        let mut cache = HashMap::with_capacity(self.circuit.gates_by_output.len());
+        cache.insert(overriden_w, overriden_sig);
         self.get_signal_for_cached(&mut cache, wire)
     }
 }
@@ -146,12 +153,16 @@ where
 fn part1() {
     let circuit = parse_circuit("input.txt");
     let sim = Sim { circuit };
-    let res = sim.get_signal_for(&"a".to_string());
+    let res = sim.get_signal(&"a".to_string());
     println!("{}", res);
 }
 
 fn part2() {
-    todo!()
+    let circuit = parse_circuit("input.txt");
+    let sim = Sim { circuit };
+    let a_sig = sim.get_signal(&"a".to_string());
+    let res = sim.get_signal_with_override(&"a".to_string(), (&"b".to_string(), a_sig));
+    println!("{}", res);
 }
 
 fn main() {
