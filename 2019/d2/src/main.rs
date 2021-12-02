@@ -49,8 +49,13 @@ impl IntCodeComputer {
         old
     }
 
+    #[inline]
     fn get(&self, addr: OpCode) -> OpCode {
         self.memory[addr]
+    }
+
+    fn reset(&mut self) {
+        self.memory = self.program.clone();
     }
 
     fn run_until_halt(&mut self) {
@@ -78,10 +83,6 @@ impl IntCodeComputer {
             pc += 4;
         }
     }
-
-    fn reset(&mut self) {
-        self.memory = self.program.clone();
-    }
 }
 
 fn part1() {
@@ -95,7 +96,31 @@ fn part1() {
 }
 
 fn part2() {
-    todo!()
+    let mut cmp = IntCodeComputer::from_path("input.txt");
+
+    let expected = 19690720;
+
+    let mut noun = None;
+    let mut verb = None;
+
+    'outer: for noun_val in 0..=99 {
+        for verb_val in 0..=99 {
+            cmp.reset();
+            cmp.set(1, noun_val);
+            cmp.set(2, verb_val);
+            cmp.run_until_halt();
+
+            if cmp.get(0) == expected {
+                noun = Some(noun_val);
+                verb = Some(verb_val);
+                break 'outer;
+            }
+        }
+    }
+
+    let res = 100 * noun.unwrap() + verb.unwrap();
+
+    println!("{}", res);
 }
 
 fn main() {
