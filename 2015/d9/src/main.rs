@@ -56,7 +56,29 @@ fn part1() {
 }
 
 fn part2() {
-    todo!()
+    let distances = parse_distances("input.txt");
+    let nodes: HashSet<_> = distances.keys().flat_map(|(n1, n2)| [n1, n2]).collect();
+
+    let min_dist: Dist = nodes
+        .iter()
+        .permutations(nodes.len())
+        .map(|perm| {
+            let dist = perm
+                .windows(2)
+                .map(|window| match window {
+                    [from, to] => distances
+                        .get(&(from.to_string(), to.to_string()))
+                        .or_else(|| distances.get(&(to.to_string(), from.to_string())))
+                        .unwrap(),
+                    _ => panic!("Invalid window!"),
+                })
+                .sum();
+            dist
+        })
+        .max()
+        .unwrap();
+
+    println!("{}", min_dist);
 }
 
 fn main() {
