@@ -25,77 +25,48 @@ fn get_bit_as_readout(r: Readout, bit: usize) -> Readout {
 }
 
 fn get_most_common_bits(report: &[Readout], bits_per_readout: usize) -> Readout {
-    let report_len = report.len();
+    let cmp = build_comparator(0, |s, h| s > h);
 
     (0..bits_per_readout)
-        .map(|bit| {
-            let sum: Readout = report
-                .iter()
-                .map(|readout| get_bit_as_readout(*readout, bit))
-                .sum();
-
-            (bit, sum)
-        })
-        .map(|(bit, sum)| {
-            let most_common_bit: Readout = (sum as usize > report_len / 2).into();
-            most_common_bit << bit
-        })
+        .map(|bit| get_most_common_bit_with_comparator(report, bit, &cmp))
         .sum()
 }
-
 
 fn get_complement(x: Readout, bits_per_readout: usize) -> Readout {
-     (!x) & (Readout::MAX >> (Readout::BITS - bits_per_readout as u32))
+    (!x) & (Readout::MAX >> (Readout::BITS - bits_per_readout as u32))
 }
 
-fn multiply_with_complement(x: Readout, bits_per_readout: usize) -> u64 {
-    x as u64 * get_complement(x, bits_per_readout) as u64
-}
-
-fn get_most_common_bits_with_comparator<F>(report: &[Readout], bits_per_readout: usize, comparator: &F) -> Readout
-where F: Fn(usize, usize, usize) -> Readout
+fn get_most_common_bit_with_comparator<F>(report: &[Readout], bit: usize, comparator: &F) -> Readout
+where
+    F: Fn(usize, usize) -> Readout,
 {
     let report_len = report.len();
+    let sum: Readout = report
+        .iter()
+        .map(|readout| get_bit_as_readout(*readout, bit))
+        .sum();
 
-    (0..bits_per_readout)
-        .map(|bit| {
-            let sum: Readout = report
-                .iter()
-                .map(|readout| get_bit_as_readout(*readout, bit))
-                .sum();
-
-            (bit, sum)
-        })
-        .map(|(bit, sum)| {
-            comparator(bit, sum.into(), report_len) << bit
-        })
-        .sum()
+    comparator(sum.into(), report_len) << bit
 }
 
-fn comparator_most(bit: usize, sum: usize, report_len: usize) -> Readout {
-    let half = report_len / 2;
-
-    if sum == report_len - sum {
-        1
-    } else {
-        (sum > half).into()
+fn build_comparator<'a, F>(default: Readout, cmp: F) -> impl Fn(usize, usize) -> Readout + 'a
+where
+    F: Fn(usize, usize) -> bool + 'a,
+{
+    move |sum, report_len| {
+        if sum == report_len - sum {
+            default
+        } else {
+            cmp(sum, report_len / 2).into()
+        }
     }
 }
 
-fn comparator_least(bit: usize, sum: usize, report_len: usize) -> Readout {
-    let half = report_len / 2;
-
-    if sum == report_len - sum {
-        0
-    } else {
-        (sum <= half).into()
-    }
-}
-
-
-fn filter_report<F>(report: Vec<Readout>, bits_per_readout: usize, bit: usize, comparator: &F) -> Vec<Readout>
-where F: Fn(usize, usize, usize) -> Readout {
-    let most_common = get_most_common_bits_with_comparator(&report, bits_per_readout, comparator);
+fn filter_report<F>(report: Vec<Readout>, bit: usize, comparator: &F) -> Vec<Readout>
+where
+    F: Fn(usize, usize) -> Readout,
+{
+    let most_common = get_most_common_bit_with_comparator(&report, bit, comparator);
     let expected_bit = get_bit_as_readout(most_common, bit);
 
     report
@@ -104,15 +75,17 @@ where F: Fn(usize, usize, usize) -> Readout {
         .collect()
 }
 
-fn reduce_report_part2<F>(mut report: Vec<Readout>, bits_per_readout: usize, comparator: F) -> Readout 
-where F: Fn(usize, usize, usize) -> Readout {
+fn reduce_report<F>(mut report: Vec<Readout>, bits_per_readout: usize, comparator: F) -> Readout
+where
+    F: Fn(usize, usize) -> Readout,
+{
     let mut bit = bits_per_readout;
 
     while report.len() > 1 {
         // if this panics then it means that filtering didn't
         // reduce the report to a single entry
         bit -= 1;
-        report = filter_report(report, bits_per_readout, bit, &comparator);
+        report = filter_report(report, bit, &comparator);
     }
 
     report[0]
@@ -121,15 +94,20 @@ where F: Fn(usize, usize, usize) -> Readout {
 fn part1() {
     let (report, bits_per_readout) = read_report("input.txt");
     let gamma = get_most_common_bits(&report, bits_per_readout);
-    println!("{}", multiply_with_complement(gamma, bits_per_readout));
+    let res = gamma as u64 * get_complement(gamma, bits_per_readout) as u64;
+    println!("{}", res);
 }
 
 fn part2() {
     let (report, bits_per_readout) = read_report("input.txt");
-    let oxygen = reduce_report_part2(report.clone(), bits_per_readout, comparator_most);
-    println!("{}", "===");
 
-    let co2 = reduce_report_part2(report, bits_per_readout, comparator_least);
+    let oxygen = reduce_report(
+        report.clone(),
+        bits_per_readout,
+        build_comparator(1, |s, h| s > h),
+    );
+
+    let co2 = reduce_report(report, bits_per_readout, build_comparator(0, |s, h| s <= h));
     println!("{}", oxygen as u64 * co2 as u64);
 }
 
