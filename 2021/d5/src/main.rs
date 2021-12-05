@@ -1,3 +1,4 @@
+use std::cmp::max;
 use std::collections::HashMap;
 use std::env;
 use std::fs;
@@ -60,29 +61,27 @@ impl<'a> IntoIterator for &'a Line {
 struct LineIter<'a> {
     start: &'a Point,
     end: &'a Point,
+    max_i: Dim,
     i: Dim,
     delta: Point,
 }
 
+fn get_delta(start: Dim, end: Dim) -> Dim {
+    match end - start {
+        0 => 0,
+        x if x > 0 => 1,
+        _ => -1,
+    }
+}
+
 impl<'a> LineIter<'a> {
     fn new(start: &'a Point, end: &'a Point) -> Self {
-        let delta_x = match end[0] - start[0] {
-            0 => 0,
-            x if x > 0 => 1,
-            _ => -1,
-        };
-
-        let delta_y = match end[1] - start[1] {
-            0 => 0,
-            x if x > 0 => 1,
-            _ => -1,
-        };
-
         LineIter {
             start,
             end,
             i: 0,
-            delta: [delta_x, delta_y],
+            max_i: max((end[0] - start[0]).abs(), (end[1] - start[1]).abs()),
+            delta: [get_delta(start[0], end[0]), get_delta(start[1], end[1])],
         }
     }
 }
@@ -91,13 +90,12 @@ impl<'a> Iterator for LineIter<'a> {
     type Item = Point;
 
     fn next(&mut self) -> Option<<Self as Iterator>::Item> {
-        let [dx, dy] = self.delta;
-
-        let ret = [self.start[0] + self.i * dx, self.start[1] + self.i * dy];
-
-        if ret[0] - self.end[0] == dx && ret[1] - self.end[1] == dy {
+        if self.i > self.max_i {
             None
         } else {
+            let [dx, dy] = self.delta;
+
+            let ret = [self.start[0] + self.i * dx, self.start[1] + self.i * dy];
             self.i += 1;
             Some(ret)
         }
@@ -164,7 +162,7 @@ mod tests {
             end: [5, 9],
         };
         let expected: Vec<Point> = (0..=5).map(|x| [x, 9]).collect();
-        let got: Vec<Point> = (&l).into_iter().collect();
+        let got: Vec<Point> = l.into_iter().collect();
         assert_eq!(got, expected);
 
         // horizontal
@@ -173,7 +171,7 @@ mod tests {
             end: [5, 3],
         };
         let expected: Vec<Point> = (0..=3).map(|x| [5, 0 + x]).collect();
-        let got: Vec<Point> = (&l).into_iter().collect();
+        let got: Vec<Point> = l.into_iter().collect();
         assert_eq!(got, expected);
 
         // antidiagonal
@@ -182,7 +180,7 @@ mod tests {
             end: [0, 3],
         };
         let expected: Vec<Point> = (0..=3).map(|x| [3 - x, 0 + x]).collect();
-        let got: Vec<Point> = (&l).into_iter().collect();
+        let got: Vec<Point> = l.into_iter().collect();
         assert_eq!(got, expected);
 
         // diagonal
@@ -191,7 +189,7 @@ mod tests {
             end: [3, 0],
         };
         let expected: Vec<Point> = (0..=3).map(|x| [0 + x, 3 - x]).collect();
-        let got: Vec<Point> = (&l).into_iter().collect();
+        let got: Vec<Point> = l.into_iter().collect();
         assert_eq!(got, expected);
     }
 }
