@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::path::Path;
@@ -128,7 +129,30 @@ fn part1() {
 }
 
 fn part2() {
-    todo!()
+    let input = read_input("input.txt");
+    let bingo_seq = parse_bingo_sequence(&input);
+    let mut boards = parse_boards(&input);
+
+    let mut won: HashMap<usize, BingoNum> = HashMap::new();
+
+    let mut last: usize = 0;
+
+    for num in bingo_seq {
+        for (i, board) in boards.iter_mut().enumerate() {
+            if !won.contains_key(&i) {
+                board.mark(num);
+            }
+
+            if board.won() && !won.contains_key(&i) {
+                won.insert(i, num);
+                last = i;
+            }
+        }
+    }
+
+    let num = won.get(&last).unwrap();
+    dbg!(&won, num);
+    println!("{}", boards[last].score() * num);
 }
 
 fn main() {
