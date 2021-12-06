@@ -40,29 +40,23 @@ fn iter_day(before: Counts) -> Counts {
     after
 }
 
-fn part1() {
-    const NDAYS: usize = 80;
-
-    let mut counts = read_counts("input.txt");
-
-    for _ in 0..NDAYS {
+fn get_final_fish_count(mut counts: Counts, ndays: usize) -> Count {
+    for _ in 0..ndays {
         counts = iter_day(counts)
     }
 
-    let res: Count = counts.iter().sum();
+    counts.iter().sum()
+}
+
+fn part1() {
+    let counts = read_counts("input.txt");
+    let res = get_final_fish_count(counts, 80);
     println!("{}", res);
 }
 
 fn part2() {
-    const NDAYS: usize = 256;
-
-    let mut counts = read_counts("input.txt");
-
-    for _ in 0..NDAYS {
-        counts = iter_day(counts)
-    }
-
-    let res: Count = counts.iter().sum();
+    let counts = read_counts("input.txt");
+    let res = get_final_fish_count(counts, 256);
     println!("{}", res);
 }
 
