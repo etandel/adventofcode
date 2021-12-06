@@ -95,7 +95,56 @@ fn part1() {
 }
 
 fn part2() {
-    todo!()
+    let wires = parse_wires("input.txt");
+
+    let mut counts: HashMap<Pos, HashSet<Id>> = HashMap::new();
+    let mut visited_at: HashMap<Pos, HashMap<Id, usize>> = HashMap::new();
+
+    for (wire_id, path) in &wires {
+        let mut pos = (0, 0);
+        let mut step = 1; // this is 1 because (0, 0) counts
+
+        for (dir, len) in path {
+            let (dx, dy): Pos = match dir {
+                Dir::L => (-1, 0),
+                Dir::R => (1, 0),
+                Dir::U => (0, 1),
+                Dir::D => (0, -1),
+            };
+
+            for _ in 0..*len {
+                pos = (pos.0 + dx, pos.1 + dy);
+                let inserted = counts
+                    .entry(pos)
+                    .or_insert_with(|| HashSet::with_capacity(2))
+                    .insert(*wire_id);
+
+                if inserted {
+                    visited_at
+                        .entry(pos)
+                        .or_insert_with(|| HashMap::with_capacity(2))
+                        .insert(*wire_id, step);
+                }
+
+                step += 1;
+            }
+        }
+    }
+
+    let min_signal_delay: usize = counts
+        .iter()
+        .filter_map(|(pos, c)| {
+            if c.len() == wires.len() {
+                Some(pos)
+            } else {
+                None
+            }
+        })
+        .map(|pos| visited_at.get(pos).unwrap().values().sum())
+        .min()
+        .unwrap();
+
+    println!("{}", min_signal_delay);
 }
 
 fn main() {
