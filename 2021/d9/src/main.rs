@@ -1,3 +1,4 @@
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs;
 use std::path::Path;
@@ -52,28 +53,61 @@ fn get_adjacent_heights<'a>(
     get_adjacent_positions(pos).filter_map(|pos| get_height(pos, grid))
 }
 
+fn get_lowest<'a>(grid: &'a Grid) -> impl Iterator<Item = (usize, usize)> + 'a {
+    grid.iter()
+        .enumerate()
+        .flat_map(move |(y, row)| row.iter().enumerate().map(move |(x, _)| (y, x)))
+        .filter(move |&(y, x)| {
+            let candidate = grid[y][x];
+            get_adjacent_heights(&grid, (y, x)).all(|h| h > candidate)
+        })
+}
+
 fn part1() {
     let grid = read_map("input.txt");
 
-    let mut total_risk = 0;
-
-    for y in 0..grid.len() {
-        let row = &grid[y];
-
-        for x in 0..row.len() {
-            let candidate = grid[y][x];
-            let mut adjacent = get_adjacent_heights(&grid, (y, x));
-            if adjacent.all(|h| h > candidate) {
-                total_risk += 1 + candidate
-            }
-        }
-    }
+    let total_risk: Height = get_lowest(&grid).map(|(y, x)| grid[y][x] + 1).sum();
 
     println!("{}", total_risk);
 }
 
 fn part2() {
-    todo!()
+    let grid = read_map("input.txt");
+
+    let mut basin_sizes: HashMap<(usize, usize), usize> =
+        get_lowest(&grid).map(|pos| (pos, 0)).collect();
+
+    let seeds: Vec<(usize, usize)> = basin_sizes.keys().copied().collect();
+    // assumes a 1-1 relation between seeds and basins
+    for seed in seeds {
+        let mut to_visit: Vec<(usize, usize)> = Vec::with_capacity(grid.len() * grid.len());
+        let mut visited: HashSet<(usize, usize)> = HashSet::with_capacity(grid.len() * grid.len());
+
+        to_visit.push(seed);
+
+        while !to_visit.is_empty() {
+            let next = to_visit.pop().unwrap();
+
+            visited.insert(next);
+            to_visit.extend(get_adjacent_positions(next).filter(|pos| {
+                get_height(*pos, &grid).map(|h| h != 9).unwrap_or(false) && !visited.contains(pos)
+            }));
+        }
+
+        if let Some(x) = basin_sizes.get_mut(&seed) {
+            *x += visited.len()
+        }
+    }
+
+    let mut sizes: Vec<_> = basin_sizes.values().collect();
+    sizes.sort();
+
+    let ret: usize = sizes[sizes.len() - 3..sizes.len()]
+        .iter()
+        .copied()
+        .product();
+
+    println!("{}", ret);
 }
 
 fn main() {
@@ -88,5 +122,5 @@ fn main() {
 #[cfg(test)]
 mod tests {
     #[test]
-    fn test_fueld_2() {}
+    fn test_() {}
 }
