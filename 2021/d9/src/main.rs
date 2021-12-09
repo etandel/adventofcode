@@ -2,6 +2,8 @@ use std::env;
 use std::fs;
 use std::path::Path;
 
+use lazy_static::lazy_static;
+
 type Height = u16;
 type Row = Vec<Height>;
 type Grid = Vec<Row>;
@@ -29,35 +31,39 @@ fn add(t: usize, dt: i8) -> Option<usize> {
     }
 }
 
-fn get_adjacent(grid: &Grid, (y, x): (usize, usize)) -> Vec<Height> {
-    let deltas = [(0, 1), (-1, 0), (0, -1), (1, 0)];
+fn get_height((y, x): (usize, usize), grid: &Grid) -> Option<Height> {
+    grid.get(y)?.get(x).map(|h| *h)
+}
 
-    deltas
+fn get_adjacent_positions((y, x): (usize, usize)) -> impl Iterator<Item = (usize, usize)> {
+    lazy_static! {
+        static ref DELTAS: [(i8, i8); 4] = [(0, 1), (-1, 0), (0, -1), (1, 0)];
+    }
+
+    DELTAS
         .iter()
-        .filter_map(|(dy, dx)| {
-            add(y, *dy)
-                .iter()
-                .map(|newy| add(x, *dx).map(|newx| (*newy, newx)))
-                .next()
-        })
-        .flatten()
-        .filter_map(|(y, x)| grid.get(y).iter().flat_map(|row| row.get(x)).next())
-        .copied()
-        .collect()
+        .filter_map(move |(dy, dx)| Some((add(y, *dy)?, add(x, *dx)?)))
+}
+
+fn get_adjacent_heights<'a>(
+    grid: &'a Grid,
+    pos: (usize, usize),
+) -> impl Iterator<Item = Height> + 'a {
+    get_adjacent_positions(pos).filter_map(|pos| get_height(pos, grid))
 }
 
 fn part1() {
-    let map = read_map("input.txt");
+    let grid = read_map("input.txt");
 
     let mut total_risk = 0;
 
-    for y in 0..map.len() {
-        let row = &map[y];
+    for y in 0..grid.len() {
+        let row = &grid[y];
 
         for x in 0..row.len() {
-            let candidate = map[y][x];
-            let adjacent = get_adjacent(&map, (y, x));
-            if adjacent.iter().all(|h| *h > candidate) {
+            let candidate = grid[y][x];
+            let mut adjacent = get_adjacent_heights(&grid, (y, x));
+            if adjacent.all(|h| h > candidate) {
                 total_risk += 1 + candidate
             }
         }
