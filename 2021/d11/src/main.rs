@@ -58,46 +58,45 @@ where
         .collect()
 }
 
+fn step(grid: &mut Grid) -> HashSet<Pos> {
+    let mut to_flash: Vec<Pos> = Vec::with_capacity((N * N) as usize);
+    let mut flashed: HashSet<Pos> = HashSet::with_capacity((N * N) as usize);
+
+    for (y, row) in grid.iter_mut().enumerate() {
+        for x in 0..(N as usize) {
+            row[x] += 1;
+            if row[x] > 9 {
+                let p = Pos(y as i32, x as i32);
+                to_flash.push(p);
+                flashed.insert(p);
+            }
+        }
+    }
+
+    while let Some(next) = to_flash.pop() {
+        for neighbor in neighbors(next) {
+            grid[neighbor.0 as usize][neighbor.1 as usize] += 1;
+
+            if grid[neighbor.0 as usize][neighbor.1 as usize] > 9 && !flashed.contains(&neighbor) {
+                to_flash.push(neighbor);
+                flashed.insert(neighbor);
+            }
+        }
+    }
+
+    for pos in &flashed {
+        grid[pos.0 as usize][pos.1 as usize] = 0;
+    }
+
+    flashed
+}
+
 fn part1() {
     let mut grid = read_grid("input.txt");
 
     let mut total = 0;
-
     for _ in 0..100 {
-        let mut to_flash: Vec<Pos> = Vec::with_capacity((N * N) as usize);
-        let mut flashed: HashSet<Pos> = HashSet::with_capacity((N * N) as usize);
-
-        for y in 0..(N as usize) {
-            let row = &mut grid[y];
-
-            for x in 0..(N as usize) {
-                row[x] += 1;
-                if row[x] > 9 {
-                    let p = Pos(y as i32, x as i32);
-                    to_flash.push(p);
-                    flashed.insert(p);
-                }
-            }
-        }
-
-        while let Some(next) = to_flash.pop() {
-            for neighbor in neighbors(next) {
-                grid[neighbor.0 as usize][neighbor.1 as usize] += 1;
-
-                if grid[neighbor.0 as usize][neighbor.1 as usize] > 9
-                    && !flashed.contains(&neighbor)
-                {
-                    to_flash.push(neighbor);
-                    flashed.insert(neighbor);
-                }
-            }
-        }
-
-        for pos in &flashed {
-            grid[pos.0 as usize][pos.1 as usize] = 0;
-        }
-
-        total += flashed.len();
+        total += step(&mut grid).len();
     }
 
     println!("{}", total);
@@ -106,49 +105,17 @@ fn part1() {
 fn part2() {
     let mut grid = read_grid("input.txt");
 
-    let mut step = 0;
+    let mut stepi = 0;
     loop {
-        let mut to_flash: Vec<Pos> = Vec::with_capacity((N * N) as usize);
-        let mut flashed: HashSet<Pos> = HashSet::with_capacity((N * N) as usize);
+        stepi += 1;
 
-        for y in 0..(N as usize) {
-            let row = &mut grid[y];
-
-            for x in 0..(N as usize) {
-                row[x] += 1;
-                if row[x] > 9 {
-                    let p = Pos(y as i32, x as i32);
-                    to_flash.push(p);
-                    flashed.insert(p);
-                }
-            }
-        }
-
-        while let Some(next) = to_flash.pop() {
-            for neighbor in neighbors(next) {
-                grid[neighbor.0 as usize][neighbor.1 as usize] += 1;
-
-                if grid[neighbor.0 as usize][neighbor.1 as usize] > 9
-                    && !flashed.contains(&neighbor)
-                {
-                    to_flash.push(neighbor);
-                    flashed.insert(neighbor);
-                }
-            }
-        }
-
-        for pos in &flashed {
-            grid[pos.0 as usize][pos.1 as usize] = 0;
-        }
-
-        step += 1;
-
+        let flashed = step(&mut grid);
         if flashed.len() == (N * N) as usize {
             break;
         }
     }
 
-    println!("{}", step);
+    println!("{}", stepi);
 }
 
 fn main() {
