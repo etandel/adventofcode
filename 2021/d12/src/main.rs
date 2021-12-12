@@ -1,9 +1,12 @@
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs;
 use std::path::Path;
+use std::rc::Rc;
 
 type Graph<'a> = HashMap<&'a str, HashSet<&'a str>>;
+type Counts<'a> = Rc<RefCell<HashMap<&'a str, usize>>>;
 
 fn read_input<P>(path: P) -> String
 where
@@ -32,48 +35,16 @@ fn is_small(s: &str) -> bool {
     s.chars().all(char::is_lowercase)
 }
 
-type Visited<'a> = Vec<&'a str>;
-
-fn should_visit(visited: &Visited, n: &str) -> bool {
-    !is_small(n) || !visited.contains(&n)
-}
-
-fn search1<'a>(graph: &'a Graph, visited: &'a Visited<'a>, n: &'a str, mut _count: usize) -> usize {
-    if n == "end" {
-        1
-    } else {
-        let mut count = 0;
-
-        for neighbor in graph.get(n).iter().flat_map(|&v| v.iter()) {
-            if should_visit(visited, neighbor) {
-                let mut subvisited = visited.clone();
-                subvisited.push(neighbor);
-                count += search1(graph, &subvisited, neighbor, count);
-            }
-        }
-
-        count
-    }
-}
-
-fn part1() {
-    let input = read_input("input.txt");
-    let graph = build_graph(&input);
-
-    let mut visited = Visited::new();
-    visited.push("start");
-    let count = search1(&graph, &visited, "start", 0);
-
-    println!("{}", count);
-}
-
-fn search2<'a>(
+fn search<'a, 'b, F>(
     graph: &'a Graph,
-    counts: &'a HashMap<&str, usize>,
+    counts: Counts<'a>,
     n: &'a str,
-    mut _count: usize,
-    iter: usize,
-) -> usize {
+    should_visit_small: &'static F,
+) -> usize
+where
+    F: Fn(Counts<'a>, &'a str) -> bool,
+    'a: 'b,
+{
     if n == "end" {
         1
     } else {
@@ -85,20 +56,15 @@ fn search2<'a>(
             }
 
             if is_small(neighbor) {
-                let mut subcounts = counts.clone();
+                *counts.borrow_mut().entry(neighbor).or_insert(0) += 1;
 
-                let seencount = subcounts.entry(neighbor).or_insert(0);
-                *seencount += 1;
-
-                if *seencount == 1
-                    || subcounts
-                        .iter()
-                        .all(|(&k, &c)| c < 2 || (k == neighbor && c == 2))
-                {
-                    count += search2(graph, &subcounts, neighbor, count, iter + 1);
+                let should = should_visit_small(counts.clone(), neighbor);
+                if should {
+                    count += search(graph, counts.clone(), neighbor, should_visit_small);
                 }
+                *counts.borrow_mut().get_mut(neighbor).unwrap() -= 1;
             } else {
-                count += search2(graph, counts, neighbor, count, iter + 1);
+                count += search(graph, counts.clone(), neighbor, should_visit_small);
             }
         }
 
@@ -106,13 +72,36 @@ fn search2<'a>(
     }
 }
 
+fn should_visit_small_1(visited: Counts, n: &str) -> bool {
+    !visited.borrow().get(&n).map(|&v| v == 2).unwrap_or(true)
+}
+
+fn should_visit_small_2<'a>(counts: Counts<'a>, small_cavern: &'a str) -> bool {
+    counts.borrow()[&small_cavern] == 1
+        || counts
+            .borrow()
+            .iter()
+            .all(|(&k, &c)| c < 2 || (k == small_cavern && c == 2))
+}
+
+fn part1() {
+    let input = read_input("input.txt");
+    let graph = build_graph(&input);
+
+    let visited = Rc::new(RefCell::new(HashMap::new()));
+    visited.borrow_mut().insert("start", 1);
+    let count = search(&graph, visited, "start", &should_visit_small_1);
+
+    println!("{}", count);
+}
+
 fn part2() {
     let input = read_input("input.txt");
     let graph = build_graph(&input);
 
-    let mut visited = HashMap::new();
-    visited.insert("start", 1);
-    let count = search2(&graph, &visited, "start", 0, 1);
+    let visited = Rc::new(RefCell::new(HashMap::new()));
+    visited.borrow_mut().insert("start", 1);
+    let count = search(&graph, visited, "start", &should_visit_small_2);
 
     println!("{}", count);
 }
