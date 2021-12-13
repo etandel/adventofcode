@@ -1,3 +1,4 @@
+use std::cmp::max;
 use std::collections::HashSet;
 use std::env;
 use std::fs;
@@ -19,6 +20,56 @@ fn parse_instruction(line: &str) -> Fold {
         (Some("x"), Some(t)) => Fold::Ver(t.parse().unwrap()),
         _ => panic!("Invalid instruction: {}", line),
     }
+}
+
+fn fold(points: &HashSet<Point>, f: Fold) -> HashSet<Point> {
+    let mut newpoints = HashSet::with_capacity(points.len());
+
+    match f {
+        Fold::Ver(row) => {
+            for &[x, y] in points {
+                newpoints.insert(if x > row {
+                    [row - (x - row), y]
+                } else if x < row {
+                    [x, y]
+                } else {
+                    panic!("Cannot fold point {:?} that sits on fold {:?}", (x, y), f);
+                });
+            }
+        }
+
+        Fold::Hor(col) => {
+            for &[x, y] in points {
+                newpoints.insert(if y > col {
+                    [x, col - (y - col)]
+                } else if y < col {
+                    [x, y]
+                } else {
+                    panic!("Cannot fold point {:?} that sits on fold {:?}", (x, y), f);
+                });
+            }
+        }
+    }
+
+    newpoints
+}
+
+fn print_points(points: &HashSet<Point>) {
+    let (maxx, maxy) = points
+        .iter()
+        .fold((0, 0), |(maxx, maxy), &[x, y]| (max(maxx, x), max(maxy, y)));
+
+    let mut s = String::with_capacity(((maxx + 1) * (maxy + 1) + maxy) as usize);
+
+    for y in 0..=maxy {
+        for x in 0..=maxx {
+            s.push(if points.contains(&[x, y]) { '#' } else { '.' });
+        }
+
+        s.push('\n');
+    }
+
+    println!("{}", s);
 }
 
 fn read_input<P>(path: P) -> String
@@ -47,34 +98,7 @@ fn part1() {
     }
 
     for line in lines {
-        let mut newpoints = HashSet::with_capacity(points.len());
-        match parse_instruction(line) {
-            f @ Fold::Ver(row) => {
-                for &[x, y] in &points {
-                    newpoints.insert(if x > row {
-                        [row - (x - row), y]
-                    } else if x < row {
-                        [x, y]
-                    } else {
-                        panic!("Cannot fold point {:?} that sits on fold {:?}", (x, y), f);
-                    });
-                }
-            }
-
-            f @ Fold::Hor(col) => {
-                for &[x, y] in &points {
-                    newpoints.insert(if y > col {
-                        [x, col - (y - col)]
-                    } else if y < col {
-                        [x, y]
-                    } else {
-                        panic!("Cannot fold point {:?} that sits on fold {:?}", (x, y), f);
-                    });
-                }
-            }
-        }
-
-        points = newpoints;
+        points = fold(&points, parse_instruction(line));
         break;
     }
 
@@ -82,7 +106,28 @@ fn part1() {
 }
 
 fn part2() {
-    todo!()
+    let input = read_input("input.txt");
+    let mut lines = input.lines();
+
+    let mut points: HashSet<Point> = HashSet::new();
+
+    for line in lines.by_ref() {
+        if line == "" {
+            break;
+        }
+
+        let mut s = line.split(',');
+        points.insert([
+            s.next().unwrap().parse().unwrap(),
+            s.next().unwrap().parse().unwrap(),
+        ]);
+    }
+
+    for line in lines {
+        points = fold(&points, parse_instruction(line));
+    }
+
+    print_points(&points);
 }
 
 fn main() {
