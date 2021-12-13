@@ -26,11 +26,12 @@ fn fold(points: &HashSet<Point>, f: Fold) -> HashSet<Point> {
     let mut newpoints = HashSet::with_capacity(points.len());
 
     match f {
-        Fold::Ver(row) => {
+        Fold::Ver(axis) => {
+            let base = axis * 2;
             for &[x, y] in points {
-                newpoints.insert(if x > row {
-                    [row - (x - row), y]
-                } else if x < row {
+                newpoints.insert(if x > axis {
+                    [base - x, y]
+                } else if x < axis {
                     [x, y]
                 } else {
                     panic!("Cannot fold point {:?} that sits on fold {:?}", (x, y), f);
@@ -38,11 +39,13 @@ fn fold(points: &HashSet<Point>, f: Fold) -> HashSet<Point> {
             }
         }
 
-        Fold::Hor(col) => {
+        Fold::Hor(axis) => {
+            let base = axis * 2;
+
             for &[x, y] in points {
-                newpoints.insert(if y > col {
-                    [x, col - (y - col)]
-                } else if y < col {
+                newpoints.insert(if y > axis {
+                    [x, base - y]
+                } else if y < axis {
                     [x, y]
                 } else {
                     panic!("Cannot fold point {:?} that sits on fold {:?}", (x, y), f);
@@ -79,6 +82,15 @@ where
     fs::read_to_string(path).unwrap()
 }
 
+fn parse_point(line: &str) -> Point {
+    let mut s = line.split(',');
+
+    [
+        s.next().unwrap().parse().unwrap(),
+        s.next().unwrap().parse().unwrap(),
+    ]
+}
+
 fn part1() {
     let input = read_input("input.txt");
     let mut lines = input.lines();
@@ -90,11 +102,7 @@ fn part1() {
             break;
         }
 
-        let mut s = line.split(',');
-        points.insert([
-            s.next().unwrap().parse().unwrap(),
-            s.next().unwrap().parse().unwrap(),
-        ]);
+        points.insert(parse_point(line));
     }
 
     for line in lines {
@@ -116,11 +124,7 @@ fn part2() {
             break;
         }
 
-        let mut s = line.split(',');
-        points.insert([
-            s.next().unwrap().parse().unwrap(),
-            s.next().unwrap().parse().unwrap(),
-        ]);
+        points.insert(parse_point(line));
     }
 
     for line in lines {
