@@ -1,4 +1,3 @@
-use std::cmp::{max, min};
 use std::collections::HashMap;
 use std::env;
 use std::fs;
@@ -38,98 +37,60 @@ where
     rules
 }
 
-fn print_template(t: &Vec<char>) {
-    println!("{}", t.iter().collect::<String>());
+fn solve<P>(path: P, n_iterations: usize) -> usize
+where
+    P: AsRef<Path>,
+{
+    let input = read_input(path);
+    let mut lines = input.lines();
+
+    let template: Vec<char> = lines.by_ref().next().unwrap().chars().collect();
+    let transitions = parse_transitions(lines);
+
+    let mut pair_counts: HashMap<Pair, usize> = HashMap::new();
+    pair_counts.insert([EPS, *template.first().unwrap()], 1);
+    pair_counts.insert([EPS, *template.last().unwrap()], 1);
+    for pair in template.windows(2) {
+        match pair {
+            &[from1, from2] => {
+                *pair_counts.entry([from1, from2]).or_insert(0) += 1;
+            }
+            _ => panic!("Invalid pair: {:#?}", pair),
+        }
+    }
+
+    for _step in 0..n_iterations {
+        let mut new_counts = HashMap::with_capacity(pair_counts.len());
+
+        for (pair, count) in pair_counts.iter() {
+            for newpair in &transitions[pair] {
+                *new_counts.entry(*newpair).or_insert(0) += count;
+            }
+        }
+
+        pair_counts = new_counts;
+    }
+
+    let mut char_counts: HashMap<char, usize> = HashMap::new();
+    for (pair, count) in pair_counts.iter() {
+        for &c in pair {
+            if c != EPS {
+                *char_counts.entry(c).or_insert(0) += count;
+            }
+        }
+    }
+
+    let mut counts: Vec<_> = char_counts.values().collect();
+    counts.sort();
+    return (*counts.last().unwrap() - counts[0]) / 2;
 }
 
 fn part1() {
-    let input = read_input("input.txt");
-    let mut lines = input.lines();
-
-    let template: Vec<char> = lines.by_ref().next().unwrap().chars().collect();
-    let transitions = parse_transitions(lines);
-
-    let mut pair_counts: HashMap<Pair, usize> = HashMap::new();
-    pair_counts.insert([EPS, *template.first().unwrap()], 1);
-    pair_counts.insert([EPS, *template.last().unwrap()], 1);
-    for pair in template.windows(2) {
-        match pair {
-            &[from1, from2] => {
-                *pair_counts.entry([from1, from2]).or_insert(0) += 1;
-            }
-            _ => panic!("Invalid pair: {:#?}", pair),
-        }
-    }
-
-    for _step in 0..10 {
-        let mut new_counts = HashMap::with_capacity(pair_counts.len());
-
-        for (pair, count) in pair_counts.iter() {
-            for newpair in &transitions[pair] {
-                *new_counts.entry(*newpair).or_insert(0) += count;
-            }
-        }
-
-        pair_counts = new_counts;
-    }
-
-    let mut char_counts: HashMap<char, usize> = HashMap::new();
-    for (pair, count) in pair_counts.iter() {
-        for &c in pair {
-            if c != EPS {
-                *char_counts.entry(c).or_insert(0) += count;
-            }
-        }
-    }
-
-    let mut counts: Vec<_> = char_counts.values().collect();
-    counts.sort();
-    println!("{}", *counts.last().unwrap() / 2 - counts[0] / 2);
+    println!("{}", solve("input.txt", 10));
 }
 
 fn part2() {
-    let input = read_input("input.txt");
-    let mut lines = input.lines();
-
-    let template: Vec<char> = lines.by_ref().next().unwrap().chars().collect();
-    let transitions = parse_transitions(lines);
-
-    let mut pair_counts: HashMap<Pair, usize> = HashMap::new();
-    pair_counts.insert([EPS, *template.first().unwrap()], 1);
-    pair_counts.insert([EPS, *template.last().unwrap()], 1);
-    for pair in template.windows(2) {
-        match pair {
-            &[from1, from2] => {
-                *pair_counts.entry([from1, from2]).or_insert(0) += 1;
-            }
-            _ => panic!("Invalid pair: {:#?}", pair),
-        }
-    }
-
-    for _step in 0..40 {
-        let mut new_counts = HashMap::with_capacity(pair_counts.len());
-
-        for (pair, count) in pair_counts.iter() {
-            for newpair in &transitions[pair] {
-                *new_counts.entry(*newpair).or_insert(0) += count;
-            }
-        }
-
-        pair_counts = new_counts;
-    }
-
-    let mut char_counts: HashMap<char, usize> = HashMap::new();
-    for (pair, count) in pair_counts.iter() {
-        for &c in pair {
-            if c != EPS {
-                *char_counts.entry(c).or_insert(0) += count;
-            }
-        }
-    }
-
-    let mut counts: Vec<_> = char_counts.values().collect();
-    counts.sort();
-    println!("{}", *counts.last().unwrap() / 2 - counts[0] / 2);
+    println!("{}", solve("input.txt", 40));
 }
 
 fn main() {
