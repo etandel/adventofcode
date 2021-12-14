@@ -11,7 +11,11 @@ where
     fs::read_to_string(path).unwrap()
 }
 
-fn parse_rules<'a, I>(lines: I) -> HashMap<[char; 2], char>
+type Pair = [char; 2];
+type Transitions = HashMap<Pair, Vec<Pair>>;
+const EPS: char = '!';
+
+fn parse_transitions<'a, I>(lines: I) -> Transitions
 where
     I: Iterator<Item = &'a str>,
 {
@@ -20,11 +24,15 @@ where
     for line in lines.skip(1) {
         let mut chars = line.chars();
 
-        let from = [chars.next().unwrap(), chars.next().unwrap()];
+        let from1 = chars.next().unwrap();
+        let from2 = chars.next().unwrap();
         // skip ' -> '
         let to = chars.skip(4).next().unwrap();
 
-        rules.insert(from, to);
+        rules.insert([from1, from2], vec![[from1, to], [to, from2]]);
+
+        rules.insert([EPS, from1], vec![[EPS, from1]]);
+        rules.insert([from2, EPS], vec![[from2, EPS]]);
     }
 
     rules
@@ -38,43 +46,90 @@ fn part1() {
     let input = read_input("input.txt");
     let mut lines = input.lines();
 
-    let mut template: Vec<char> = lines.by_ref().next().unwrap().chars().collect();
-    let rules = parse_rules(lines);
+    let template: Vec<char> = lines.by_ref().next().unwrap().chars().collect();
+    let transitions = parse_transitions(lines);
+
+    let mut pair_counts: HashMap<Pair, usize> = HashMap::new();
+    pair_counts.insert([EPS, *template.first().unwrap()], 1);
+    pair_counts.insert([EPS, *template.last().unwrap()], 1);
+    for pair in template.windows(2) {
+        match pair {
+            &[from1, from2] => {
+                *pair_counts.entry([from1, from2]).or_insert(0) += 1;
+            }
+            _ => panic!("Invalid pair: {:#?}", pair),
+        }
+    }
 
     for _step in 0..10 {
-        let mut new_template = Vec::with_capacity(template.len() * 2 - 1);
+        let mut new_counts = HashMap::with_capacity(pair_counts.len());
 
-        new_template.push(template[0]);
-        template.windows(2).for_each(|w| match w {
-            from @ &[_, b] => {
-                new_template.push(rules[from]);
-                new_template.push(b);
+        for (pair, count) in pair_counts.iter() {
+            for newpair in &transitions[pair] {
+                *new_counts.entry(*newpair).or_insert(0) += count;
             }
-            _ => panic!("Invalid window {:?}", w),
-        });
+        }
 
-        template = new_template;
+        pair_counts = new_counts;
     }
 
-    let mut counts: HashMap<char, usize> = HashMap::new();
-    let mut min_count = usize::MAX;
-    let mut max_count = 0;
-
-    for c in template {
-        let e = counts.entry(c).or_insert(0);
-        *e += 1;
-
-        min_count = min(min_count, *e);
-        max_count = max(max_count, *e);
+    let mut char_counts: HashMap<char, usize> = HashMap::new();
+    for (pair, count) in pair_counts.iter() {
+        for &c in pair {
+            if c != EPS {
+                *char_counts.entry(c).or_insert(0) += count;
+            }
+        }
     }
 
-    let mut counts: Vec<_> = counts.values().collect();
+    let mut counts: Vec<_> = char_counts.values().collect();
     counts.sort();
-    println!("{}", *counts.last().unwrap() - counts[0]);
+    println!("{}", *counts.last().unwrap() / 2 - counts[0] / 2);
 }
 
 fn part2() {
-    todo!()
+    let input = read_input("input.txt");
+    let mut lines = input.lines();
+
+    let template: Vec<char> = lines.by_ref().next().unwrap().chars().collect();
+    let transitions = parse_transitions(lines);
+
+    let mut pair_counts: HashMap<Pair, usize> = HashMap::new();
+    pair_counts.insert([EPS, *template.first().unwrap()], 1);
+    pair_counts.insert([EPS, *template.last().unwrap()], 1);
+    for pair in template.windows(2) {
+        match pair {
+            &[from1, from2] => {
+                *pair_counts.entry([from1, from2]).or_insert(0) += 1;
+            }
+            _ => panic!("Invalid pair: {:#?}", pair),
+        }
+    }
+
+    for _step in 0..40 {
+        let mut new_counts = HashMap::with_capacity(pair_counts.len());
+
+        for (pair, count) in pair_counts.iter() {
+            for newpair in &transitions[pair] {
+                *new_counts.entry(*newpair).or_insert(0) += count;
+            }
+        }
+
+        pair_counts = new_counts;
+    }
+
+    let mut char_counts: HashMap<char, usize> = HashMap::new();
+    for (pair, count) in pair_counts.iter() {
+        for &c in pair {
+            if c != EPS {
+                *char_counts.entry(c).or_insert(0) += count;
+            }
+        }
+    }
+
+    let mut counts: Vec<_> = char_counts.values().collect();
+    counts.sort();
+    println!("{}", *counts.last().unwrap() / 2 - counts[0] / 2);
 }
 
 fn main() {
