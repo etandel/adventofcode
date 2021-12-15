@@ -161,9 +161,8 @@ impl PartialOrd for Node {
     }
 }
 
-fn dijkstra(grid: &Grid<Risk>) -> Option<HashMap<Point, Risk>> {
-    let mut distances: HashMap<Point, Risk> = grid.iter_points().map(|p| (p, Risk::MAX)).collect();
-    //let mut previous: HashMap<Point, Option<Point>> = grid.iter_points().map(|p| (p, None)).collect();
+fn dijkstra1(grid: &Grid<Risk>) -> Option<HashMap<Point, Risk>> {
+    let mut distances: HashMap<Point, Risk> = HashMap::new();
     let mut queue: BinaryHeap<Node> = BinaryHeap::with_capacity(distances.len());
     let mut enqueued: HashSet<Point> = HashSet::with_capacity(distances.len());
 
@@ -182,13 +181,94 @@ fn dijkstra(grid: &Grid<Risk>) -> Option<HashMap<Point, Risk>> {
             return Some(distances);
         }
 
-        if total_risk > distances[&point] {
+        let current_risk = distances.entry(point).or_insert(Risk::MAX);
+        if total_risk > *current_risk {
             continue;
         }
 
         for neighbor in grid.neighbors_idx_4(point) {
             let new_risk = total_risk + grid[neighbor];
-            if new_risk < distances[&neighbor] && !enqueued.contains(&neighbor) {
+            let current_risk = distances.entry(neighbor).or_insert(Risk::MAX);
+            if new_risk < *current_risk && !enqueued.contains(&neighbor) {
+                queue.push(Node {
+                    point: neighbor,
+                    total_risk: new_risk,
+                });
+                distances.insert(neighbor, new_risk);
+            }
+        }
+    }
+
+    None
+}
+
+fn neighbors_idx_4_part2<T>(grid: &Grid<T>, point: Point) -> Vec<Point> {
+    let deltas = [
+        Point::new(-1, 0),
+        Point::new(1, 0),
+        Point::new(0, 1),
+        Point::new(0, -1),
+    ];
+
+    deltas
+        .iter()
+        .filter_map(|d| point.checked_add(*d, grid.nrows * 5, grid.ncols * 5))
+        .collect()
+}
+
+fn project(dim: i32, max: usize) -> (i32, i32) {
+    let projected = dim % max as i32;
+    (projected, dim / max as i32)
+}
+
+fn get_risk_part_2(grid: &Grid<Risk>, Point { y, x }: Point) -> Risk {
+    let (projy, dy) = project(y, grid.nrows);
+    let (projx, dx) = project(x, grid.ncols);
+
+    let delta = dy + dx;
+
+    let risk = grid[Point::new(projy, projx)] + delta as Risk;
+
+    if risk > 9 {
+        risk % 10 + 1
+    } else {
+        risk
+    }
+}
+
+fn dijkstra2(grid: &Grid<Risk>) -> Option<HashMap<Point, Risk>> {
+    let mut distances: HashMap<Point, Risk> = HashMap::new();
+
+    let mut queue: BinaryHeap<Node> = BinaryHeap::new();
+    let mut enqueued: HashSet<Point> = HashSet::new();
+
+    let start = grid.top_left();
+    let end = Point::new((5 * grid.nrows - 1) as i32, (5 * grid.ncols - 1) as i32);
+
+    distances.insert(start, 0);
+    queue.push(Node {
+        point: start,
+        total_risk: 0,
+    });
+    enqueued.insert(start);
+
+    while let Some(Node { point, total_risk }) = queue.pop() {
+        if point == end {
+            return Some(distances);
+        }
+
+        // TODO maybe it's possible to index directly?
+        let current_risk = distances.entry(point).or_insert(Risk::MAX);
+        if total_risk > *current_risk {
+            continue;
+        }
+
+        let neighbors = neighbors_idx_4_part2(grid, point);
+
+        for neighbor in neighbors {
+            let new_risk = total_risk + get_risk_part_2(grid, neighbor);
+            let current_risk = distances.entry(neighbor).or_insert(Risk::MAX);
+            if new_risk < *current_risk && !enqueued.contains(&neighbor) {
                 queue.push(Node {
                     point: neighbor,
                     total_risk: new_risk,
@@ -203,12 +283,15 @@ fn dijkstra(grid: &Grid<Risk>) -> Option<HashMap<Point, Risk>> {
 
 fn part1() {
     let grid = read_grid("input.txt");
-    let distances = dijkstra(&grid).unwrap();
+    let distances = dijkstra1(&grid).unwrap();
     println!("{}", distances[&grid.bottom_right()]);
 }
 
 fn part2() {
-    todo!()
+    let grid = read_grid("input.txt");
+    let distances = dijkstra2(&grid).unwrap();
+    let end = Point::new((&grid.nrows * 5 - 1) as i32, (&grid.ncols * 5 - 1) as i32);
+    println!("{}", distances[&end]);
 }
 
 fn main() {
