@@ -49,7 +49,7 @@ where
 
     let mut pair_counts: HashMap<Pair, usize> = HashMap::new();
     pair_counts.insert([EPS, *template.first().unwrap()], 1);
-    pair_counts.insert([EPS, *template.last().unwrap()], 1);
+    pair_counts.insert([*template.last().unwrap(), EPS], 1);
     for pair in template.windows(2) {
         match pair {
             &[from1, from2] => {
