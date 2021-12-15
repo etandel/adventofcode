@@ -161,47 +161,6 @@ impl PartialOrd for Node {
     }
 }
 
-fn dijkstra1(grid: &Grid<Risk>) -> Option<HashMap<Point, Risk>> {
-    let mut distances: HashMap<Point, Risk> = HashMap::new();
-    let mut queue: BinaryHeap<Node> = BinaryHeap::with_capacity(distances.len());
-    let mut enqueued: HashSet<Point> = HashSet::with_capacity(distances.len());
-
-    let start = grid.top_left();
-    let end = grid.bottom_right();
-
-    distances.insert(start, 0);
-    queue.push(Node {
-        point: start,
-        total_risk: 0,
-    });
-    enqueued.insert(start);
-
-    while let Some(Node { point, total_risk }) = queue.pop() {
-        if point == end {
-            return Some(distances);
-        }
-
-        let current_risk = distances.entry(point).or_insert(Risk::MAX);
-        if total_risk > *current_risk {
-            continue;
-        }
-
-        for neighbor in grid.neighbors_idx_4(point) {
-            let new_risk = total_risk + grid[neighbor];
-            let current_risk = distances.entry(neighbor).or_insert(Risk::MAX);
-            if new_risk < *current_risk && !enqueued.contains(&neighbor) {
-                queue.push(Node {
-                    point: neighbor,
-                    total_risk: new_risk,
-                });
-                distances.insert(neighbor, new_risk);
-            }
-        }
-    }
-
-    None
-}
-
 fn neighbors_idx_4_part2<T>(grid: &Grid<T>, point: Point) -> Vec<Point> {
     let deltas = [
         Point::new(-1, 0),
@@ -236,14 +195,22 @@ fn get_risk_part_2(grid: &Grid<Risk>, Point { y, x }: Point) -> Risk {
     }
 }
 
-fn dijkstra2(grid: &Grid<Risk>) -> Option<HashMap<Point, Risk>> {
+fn dijkstra<C, N, I>(
+    grid: &Grid<Risk>,
+    start: Point,
+    end: Point,
+    get_cost: C,
+    get_neighbors: N,
+) -> Option<HashMap<Point, Risk>>
+where
+    C: Fn(&Grid<Risk>, Point) -> Risk,
+    N: Fn(&Grid<Risk>, Point) -> I,
+    I: IntoIterator<Item = Point>,
+{
     let mut distances: HashMap<Point, Risk> = HashMap::new();
 
     let mut queue: BinaryHeap<Node> = BinaryHeap::new();
     let mut enqueued: HashSet<Point> = HashSet::new();
-
-    let start = grid.top_left();
-    let end = Point::new((5 * grid.nrows - 1) as i32, (5 * grid.ncols - 1) as i32);
 
     distances.insert(start, 0);
     queue.push(Node {
@@ -257,16 +224,12 @@ fn dijkstra2(grid: &Grid<Risk>) -> Option<HashMap<Point, Risk>> {
             return Some(distances);
         }
 
-        // TODO maybe it's possible to index directly?
-        let current_risk = distances.entry(point).or_insert(Risk::MAX);
-        if total_risk > *current_risk {
+        if total_risk > distances[&point] {
             continue;
         }
 
-        let neighbors = neighbors_idx_4_part2(grid, point);
-
-        for neighbor in neighbors {
-            let new_risk = total_risk + get_risk_part_2(grid, neighbor);
+        for neighbor in get_neighbors(grid, point) {
+            let new_risk = total_risk + get_cost(grid, neighbor);
             let current_risk = distances.entry(neighbor).or_insert(Risk::MAX);
             if new_risk < *current_risk && !enqueued.contains(&neighbor) {
                 queue.push(Node {
@@ -283,14 +246,28 @@ fn dijkstra2(grid: &Grid<Risk>) -> Option<HashMap<Point, Risk>> {
 
 fn part1() {
     let grid = read_grid("input.txt");
-    let distances = dijkstra1(&grid).unwrap();
+    let distances = dijkstra(
+        &grid,
+        grid.top_left(),
+        grid.bottom_right(),
+        |g, p| g[p],
+        |g, p| g.neighbors_idx_4(p),
+    )
+    .unwrap();
     println!("{}", distances[&grid.bottom_right()]);
 }
 
 fn part2() {
     let grid = read_grid("input.txt");
-    let distances = dijkstra2(&grid).unwrap();
     let end = Point::new((&grid.nrows * 5 - 1) as i32, (&grid.ncols * 5 - 1) as i32);
+    let distances = dijkstra(
+        &grid,
+        grid.top_left(),
+        end,
+        get_risk_part_2,
+        neighbors_idx_4_part2,
+    )
+    .unwrap();
     println!("{}", distances[&end]);
 }
 
