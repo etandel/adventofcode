@@ -165,7 +165,7 @@ fn dijkstra(grid: &Grid<Risk>) -> Option<HashMap<Point, Risk>> {
     let mut distances: HashMap<Point, Risk> = grid.iter_points().map(|p| (p, Risk::MAX)).collect();
     //let mut previous: HashMap<Point, Option<Point>> = grid.iter_points().map(|p| (p, None)).collect();
     let mut queue: BinaryHeap<Node> = BinaryHeap::with_capacity(distances.len());
-    //let mut enqueued: HashSet<Point> = HashSet::with_capacity(distances.len());
+    let mut enqueued: HashSet<Point> = HashSet::with_capacity(distances.len());
 
     let start = grid.top_left();
     let end = grid.bottom_right();
@@ -175,7 +175,7 @@ fn dijkstra(grid: &Grid<Risk>) -> Option<HashMap<Point, Risk>> {
         point: start,
         total_risk: 0,
     });
-    //enqueued.insert(start);
+    enqueued.insert(start);
 
     while let Some(Node { point, total_risk }) = queue.pop() {
         if point == end {
@@ -188,7 +188,7 @@ fn dijkstra(grid: &Grid<Risk>) -> Option<HashMap<Point, Risk>> {
 
         for neighbor in grid.neighbors_idx_4(point) {
             let new_risk = total_risk + grid[neighbor];
-            if new_risk < distances[&neighbor] {
+            if new_risk < distances[&neighbor] && !enqueued.contains(&neighbor) {
                 queue.push(Node {
                     point: neighbor,
                     total_risk: new_risk,
