@@ -15,34 +15,23 @@ where
     [poss[0] as u64, poss[1] as u64]
 }
 
-fn play(mut p1_pos: u64, mut p2_pos: u64) -> u64 {
-    let mut p1_score = 0;
-    let mut p2_score = 0;
+fn play(p1_pos: u64, p2_pos: u64) -> u64 {
+    let mut score = [0, 0];
+    let mut pos = [p1_pos, p2_pos];
 
-    let mut rolls = (1..=100).cycle();
     let mut nrolls = 0;
+    let mut rolls = (1..=100).cycle();
 
     loop {
-        dbg!(p1_pos, p1_score, p2_pos, p2_score);
+        for player in 0..=1 {
+            nrolls += 3;
+            pos[player] = ((pos[player] + rolls.by_ref().take(3).sum::<u64>()) - 1) % 10 + 1;
 
-        nrolls += 3;
-        p1_pos = ((p1_pos + rolls.next().unwrap() + rolls.next().unwrap() + rolls.next().unwrap())
-            - 1)
-            % 10
-            + 1;
-        p1_score += p1_pos;
-        if p1_score >= 1000 {
-            return nrolls * p2_score;
-        }
+            score[player] += pos[player];
 
-        nrolls += 3;
-        p2_pos = ((p2_pos + rolls.next().unwrap() + rolls.next().unwrap() + rolls.next().unwrap())
-            - 1)
-            % 10
-            + 1;
-        p2_score += p2_pos;
-        if p2_score >= 1000 {
-            return nrolls * p1_score;
+            if score[player] >= 1000 {
+                return nrolls * score[(player + 1) % 2];
+            }
         }
     }
 }
