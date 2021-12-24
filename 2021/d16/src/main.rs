@@ -87,20 +87,24 @@ enum PLen {
     Packets(u64),
 }
 
-/*
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum PVal {
-    Packet(Packet),
+    Packet(Vec<Packet>),
     Const(u64),
+}
+
+impl Default for PVal {
+    fn default() -> Self {
+        PVal::Const(0)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 struct Packet {
     version: u64,
     type_id: u64,
-    val: Vec<PVal>,
+    val: PVal,
 }
-*/
 
 fn parse_const<I>(i: &mut I) -> u64
 where
@@ -116,81 +120,90 @@ where
     val
 }
 
-fn sum_versions(i: &mut IterBitStream, expected: PLen) -> u64 {
-    let mut sum = 0;
+fn parse_packet(i: &mut IterBitStream, expected: PLen) -> Vec<Packet> {
+    let mut packets = Vec::new();
 
     match expected {
         PLen::Bits(mut n) => {
             let mut pos_before = i.pos;
             while n > 0 {
-                sum += parse_n(i, 3);
+                let version = parse_n(i, 3);
                 let type_id = parse_n(i, 3);
 
-                if type_id == 4 {
-                    // skip type 4 const bits
-                    parse_const(i);
+                let val = if type_id == 4 {
+                    PVal::Const(parse_const(i))
                 } else {
                     let len_type = parse_n(i, 1);
 
                     if len_type == 0 {
                         let len = parse_n(i, 15);
-                        sum += sum_versions(i, PLen::Bits(len));
+                        PVal::Packet(parse_packet(i, PLen::Bits(len)))
                     } else {
                         let len = parse_n(i, 11);
-                        sum += sum_versions(i, PLen::Packets(len));
+                        PVal::Packet(parse_packet(i, PLen::Packets(len)))
                     }
                 };
 
                 let delta = i.pos - pos_before;
                 pos_before = i.pos;
                 n -= delta as u64;
+
+                packets.push(Packet {
+                    version,
+                    type_id,
+                    val,
+                });
             }
         }
+
         PLen::Packets(n) => {
             for _ in 0..n {
-                sum += parse_n(i, 3);
+                let version = parse_n(i, 3);
                 let type_id = parse_n(i, 3);
 
-                if type_id == 4 {
-                    // skip type 4 const bits
-                    parse_const(i);
+                let val = if type_id == 4 {
+                    PVal::Const(parse_const(i))
                 } else {
                     let len_type = parse_n(i, 1);
 
                     if len_type == 0 {
                         let len = parse_n(i, 15);
-                        sum += sum_versions(i, PLen::Bits(len));
+                        PVal::Packet(parse_packet(i, PLen::Bits(len)))
                     } else {
                         let len = parse_n(i, 11);
-                        sum += sum_versions(i, PLen::Packets(len));
+                        PVal::Packet(parse_packet(i, PLen::Packets(len)))
                     }
                 };
+
+                packets.push(Packet {
+                    version,
+                    type_id,
+                    val,
+                });
             }
+        }
+    }
+
+    packets
+}
+
+fn sum_versions<'a, I>(ps: I) -> u64
+where
+    I: IntoIterator<Item = &'a Packet> + 'a,
+{
+    let mut sum = 0;
+
+    for packet in ps {
+        sum += packet.version;
+
+        sum += match &packet.val {
+            PVal::Const(_) => 0,
+            PVal::Packet(ps) => sum_versions(ps),
         }
     }
 
     sum
 }
-
-/*
-fn sum_versions(p: &Packet) -> u64 {
-    let mut version = p.version;
-
-    if p.type_id != 4 {
-        version += p
-            .val
-            .iter()
-            .map(
-                |pval| match pval {
-                    PVal::Packet(p) => sum_versions(p),
-                    _ => panic!("Invalid packet: {:?}", p)
-            })
-            .sum::<u64>()
-    }
-
-    version
-}
-*/
 
 fn read_stream<P>(path: P) -> Stream
 where
@@ -202,7 +215,7 @@ where
 fn part1() {
     let stream = read_stream("input.txt");
 
-    let sum = sum_versions(&mut stream.iter(), PLen::Packets(1));
+    let sum = sum_versions(&parse_packet(&mut stream.iter(), PLen::Packets(1)));
 
     println!("{}", sum);
 }
@@ -308,7 +321,7 @@ mod tests {
     fn test_sum_versions() {
         fn assert_sum(inp: &str, expected: u64) {
             let s = Stream::from_str(inp);
-            let got = sum_versions(&mut s.iter(), PLen::Packets(1));
+            let got = sum_versions(&parse_packet(&mut s.iter(), PLen::Packets(1)));
             assert_eq!(got, expected);
         }
 
