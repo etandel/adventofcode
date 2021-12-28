@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::env;
 use std::fs;
 use std::iter::Sum;
@@ -7,44 +8,62 @@ use std::rc::Rc;
 use std::str::FromStr;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-enum Side {
-    L, R
-}
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 enum Op {
     // depth, l / r
     Split(usize, Side),
     Explode(usize, Side),
 }
 
-type W<T> = Rc<T>;
 type N = u32;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
-enum Num {
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+enum Entry {
     Val(N),
-    Pair(W<Num>, W<Num>),
+    Open,
+    Close,
+}
+use Entry::{Close, Open, Val};
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+struct Num {
+    vals: VecDeque<Entry>,
 }
 
 impl Num {
     #[allow(dead_code)]
     fn p(l: Self, r: Self) -> Self {
-        Self::Pair(W::new(l), W::new(r))
+        let mut vals = VecDeque::with_capacity(l.vals.len() + r.vals.len() + 2);
+        vals.extend(l.vals.into_iter().chain(r.vals.into_iter()));
+        vals.push_front(Open);
+        vals.push_back(Close);
+        Num { vals }
+    }
+
+    #[allow(dead_code)]
+    fn pvl(l: N, r: Self) -> Self {
+        Num {
+            vals: VecDeque::from_iter([Open, Val(l)].into_iter().chain(r.vals).chain([Close])),
+        }
+    }
+
+
+    #[allow(dead_code)]
+    fn pvr(l: Self, r: N) -> Self {
+        Num {
+            vals: VecDeque::from_iter([Open].into_iter().chain(l.vals).chain([Val(r), Close])),
+        }
     }
 
     #[allow(dead_code)]
     fn vp(l: N, r: N) -> Self {
-        Self::Pair(W::new(Self::Val(l)), W::new(Self::Val(r)))
+        Num {
+            vals: VecDeque::from_iter([Open, Val(l), Val(r), Close]),
+        }
     }
 
     fn reduce(&self) -> Self {
-        use Num::{Val, Pair};
-
-        let problem = match self {
-            Val(x) if x >= 10 => Split(
-        }
-        self.clone()
+       // TODO
+       self.clone()
     }
 }
 
@@ -52,22 +71,16 @@ impl FromStr for Num {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, <Self as FromStr>::Err> {
-        use Num::{Pair, Val};
-
-        let mut stack = Vec::new();
-
-        for c in s.chars() {
-            if c.is_ascii_digit() {
-                stack.push(Val(c.to_digit(10).unwrap()))
-            } else if c == ']' {
-                let r = W::new(stack.pop().unwrap());
-                let l = W::new(stack.pop().unwrap());
-                stack.push(Pair(l, r))
-            }
-        }
-
-        assert!(stack.len() == 1);
-        Ok(stack.pop().unwrap())
+        Ok(Num {
+            vals: s
+                .chars()
+                .filter_map(|c| match c {
+                    '[' => Some(Open),
+                    ']' => Some(Close),
+                    c => c.to_digit(10).map(|v| Val(v)),
+                })
+                .collect(),
+        })
     }
 }
 
@@ -75,19 +88,17 @@ impl Add for Num {
     type Output = Num;
 
     fn add(self, rhs: Self) -> Self::Output {
-        Num::Pair(W::new(self), W::new(rhs)).reduce()
+        Self::p(self, rhs)
     }
 }
 
 impl Sum<Num> for Option<Num> {
     fn sum<I>(mut i: I) -> Self
     where
-        I: Iterator<Item=Num>,
+        I: Iterator<Item = Num>,
     {
         match i.next() {
-            Some(first) => {
-                Some(i.fold(first, |a, b| a + b))
-            }
+            Some(first) => Some(i.fold(first, |a, b| a + b)),
             None => None,
         }
     }
@@ -95,12 +106,7 @@ impl Sum<Num> for Option<Num> {
 
 impl Num {
     fn mag(&self) -> N {
-        use Num::{Pair, Val};
-
-        match self {
-            &Val(x) => x,
-            Pair(left, right) => 3 * left.mag() + 2 * right.mag(),
-        }
+        todo!()
     }
 }
 
@@ -141,22 +147,22 @@ mod tests {
     #[test]
     fn test_add() {
         fn assert_add(a: &str, b: &str, expected: &str) {
-            assert_eq!(a.parse::<Num>().unwrap() + b.parse::<Num>().unwrap(), expected.parse::<Num>().unwrap());
+            assert_eq!(
+                a.parse::<Num>().unwrap() + b.parse::<Num>().unwrap(),
+                expected.parse::<Num>().unwrap()
+            );
         }
         assert_add("[1, 2]", "[3, 4]", "[[1, 2], [3, 4]]")
-
     }
 
     #[test]
     fn test_from_str() {
-        use Num::Val;
-
         let s = "[1, 2]";
         let expected = Num::vp(1, 2);
         assert_eq!(s.parse(), Ok(expected));
 
         let s = "[[1, 2], 3]";
-        let expected = Num::p(Num::vp(1, 2), Val(3));
+        let expected = Num::pvr(Num::vp(1, 2), 3);
         assert_eq!(s.parse(), Ok(expected));
 
         let s = "[[1, 2], [3, 4]]";
@@ -166,21 +172,19 @@ mod tests {
         let s = "[[1, 2], [[3, 4], [5, [6, 7]]]]";
         let expected = Num::p(
             Num::vp(1, 2),
-            Num::p(Num::vp(3, 4), Num::p(Val(5), Num::vp(6, 7))),
+            Num::p(Num::vp(3, 4), Num::pvl(5, Num::vp(6, 7))),
         );
         assert_eq!(s.parse(), Ok(expected));
     }
 
     #[test]
     fn test_mag() {
-        use Num::Val;
-
-        let p = Num::p(Num::vp(1, 2), Num::p(Num::vp(3, 4), Val(5)));
+        let p = Num::p(Num::vp(1, 2), Num::pvr(Num::vp(3, 4), 5));
         assert_eq!(p.mag(), 143);
 
         let p = Num::p(
             Num::p(
-                Num::p(Num::vp(0, 7), Val(4)),
+                Num::pvr(Num::vp(0, 7), 4),
                 Num::p(Num::vp(7, 8), Num::vp(6, 0)),
             ),
             Num::vp(8, 1),
