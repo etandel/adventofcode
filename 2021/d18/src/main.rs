@@ -59,11 +59,11 @@ impl Num {
             let mut open_count = 0;
 
             for i in 0..self.vals.len() {
-                match self.vals[i] {
-                    Open => open_count += 1,
-                    Close => open_count -= 1,
+                match (self.vals[i], self.vals.get(i+1)) {
+                    (Open, _) => open_count += 1,
+                    (Close, _) => open_count -= 1,
 
-                    Val(left) if open_count > 4 => {
+                    (Val(left), Some(&Val(right))) if open_count > 4 => {
                         //dbg!(&self.vals, i, open_count, left);
 
                         // sum to left
@@ -75,15 +75,11 @@ impl Num {
                         }
 
                         // sum to right
-                        if let Val(right) = self.vals[i + 1] {
-                            for k in i + 2..self.vals.len() {
-                                if let Val(v) = self.vals[k] {
-                                    self.vals[k] = Val(v + right);
-                                    break;
-                                }
+                        for k in i + 2..self.vals.len() {
+                            if let Val(v) = self.vals[k] {
+                                self.vals[k] = Val(v + right);
+                                break;
                             }
-                        } else {
-                            panic!("Missing right!");
                         }
 
                         // replace current with 0
@@ -96,7 +92,7 @@ impl Num {
                         break;
                     }
 
-                    Val(x) if x >= 10 => {
+                    (Val(x), _) if x >= 10 => {
                         let d = x as f32 / 2.0;
 
                         self.vals[i] = Open;
