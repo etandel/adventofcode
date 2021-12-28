@@ -3,6 +3,7 @@ use std::fs;
 use std::path::Path;
 use std::rc::Rc;
 use std::str::FromStr;
+use std::ops::Add;
 
 type W<T> = Rc<T>;
 type N = u32;
@@ -46,6 +47,14 @@ impl FromStr for Num {
     }
 }
 
+impl Add for &Num {
+    type Output = Num;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Num::Pair(W::new(self), W::new(rhs))
+    }
+}
+
 impl Num {
     fn mag(&self) -> N {
         use Num::{Pair, Val};
@@ -57,16 +66,18 @@ impl Num {
     }
 }
 
-fn read_input<P>(path: P) -> Num
+
+fn read_input<P>(path: P) -> Vec<Num>
 where
     P: AsRef<Path>,
 {
-    let s = fs::read_to_string(path).unwrap();
-    todo!()
+    fs::read_to_string(path).unwrap().lines().map(|l| l.parse().unwrap()).collect()
 }
 
 fn part1() {
-    println!("{}", -1);
+    let nums = read_input("input_example.txt");
+    let res = nums.iter().skip(1).fold(nums[0], |acc, &n| acc + n);
+    println!("{}", res.mag());
 }
 
 fn part2() {
