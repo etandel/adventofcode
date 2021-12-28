@@ -4,15 +4,8 @@ use std::fs;
 use std::iter::Sum;
 use std::ops::Add;
 use std::path::Path;
-use std::rc::Rc;
 use std::str::FromStr;
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-enum Op {
-    // depth, l / r
-    Split(usize, Side),
-    Explode(usize, Side),
-}
+use std::fmt;
 
 type N = u32;
 
@@ -46,7 +39,6 @@ impl Num {
         }
     }
 
-
     #[allow(dead_code)]
     fn pvr(l: Self, r: N) -> Self {
         Num {
@@ -61,9 +53,71 @@ impl Num {
         }
     }
 
-    fn reduce(&self) -> Self {
-       // TODO
-       self.clone()
+    fn reduce(mut self) -> Self {
+        loop {
+            let mut reduced = false;
+            let mut open_count = 0;
+
+            for i in 0..self.vals.len() {
+                match self.vals[i] {
+                    Open => open_count += 1,
+                    Close => open_count -= 1,
+
+                    Val(left) if open_count > 4 => {
+                        //dbg!(&self.vals, i, open_count, left);
+
+                        // sum to left
+                        for k in (0..i).rev() {
+                            if let Val(v) = self.vals[k] {
+                                self.vals[k] = Val(v + left);
+                                break;
+                            }
+                        }
+
+                        // sum to right
+                        if let Val(right) = self.vals[i + 1] {
+                            for k in i + 2..self.vals.len() {
+                                if let Val(v) = self.vals[k] {
+                                    self.vals[k] = Val(v + right);
+                                    break;
+                                }
+                            }
+                        } else {
+                            panic!("Missing right!");
+                        }
+
+                        // replace current with 0
+                        self.vals[i - 1] = Val(0);
+                        self.vals.remove(i);
+                        self.vals.remove(i);
+                        self.vals.remove(i);
+
+                        reduced = true;
+                        break;
+                    }
+
+                    Val(x) if x >= 10 => {
+                        let d = x as f32 / 2.0;
+
+                        self.vals[i] = Open;
+                        self.vals.insert(i + 1, Close);
+                        self.vals.insert(i + 1, Val(d.ceil() as N));
+                        self.vals.insert(i + 1, Val(d.floor() as N));
+
+                        reduced = true;
+                        break;
+                    }
+
+                    _ => {}
+                }
+            }
+
+            if !reduced {
+                break;
+            }
+        }
+
+        self
     }
 }
 
@@ -84,11 +138,49 @@ impl FromStr for Num {
     }
 }
 
+impl fmt::Display for Num {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        for i in 0..self.vals.len() {
+            match self.vals[i] {
+                Open => {
+                    write!(f, "{}", '[')?;
+                },
+
+                Close => {
+                    write!(f, "{}", ']')?;
+
+                    if let Some(Open | Val(_)) = self.vals.get(i + 1) {
+                        write!(f, "{}", ',')?;
+                    }
+                },
+
+                Val(x) => {
+                    write!(f, "{}", x)?;
+
+                    if let Some(Open | Val(_)) = self.vals.get(i + 1) {
+                        write!(f, "{}", ',')?;
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
 impl Add for Num {
     type Output = Num;
 
     fn add(self, rhs: Self) -> Self::Output {
-        Self::p(self, rhs)
+        println!("{}", &self);
+        println!("{}", &rhs);
+
+        let r = Self::p(self, rhs).reduce();
+
+        println!("{}", &r);
+        println!("{}", "=========");
+
+        r
     }
 }
 
@@ -106,7 +198,22 @@ impl Sum<Num> for Option<Num> {
 
 impl Num {
     fn mag(&self) -> N {
-        todo!()
+        let mut stack = Vec::new();
+        for entry in &self.vals {
+            match entry {
+                Close => {
+                    // because of stack, right comes first when popping
+                    let v = stack.pop().unwrap() * 2 + stack.pop().unwrap() * 3;
+                    stack.push(v);
+                }
+                &Val(x) => {
+                    stack.push(x);
+                }
+                _ => {}
+            }
+        }
+
+        stack.pop().unwrap()
     }
 }
 
@@ -123,7 +230,10 @@ where
 
 fn part1() {
     let nums = read_input("input_example.txt");
-    let res = nums.into_iter().sum::<Option<Num>>().unwrap().mag();
+    let num = nums.into_iter().sum::<Option<Num>>().unwrap();
+
+    println!("{}", num);
+    let res = num.mag();
     println!("{}", res);
 }
 
@@ -144,15 +254,48 @@ fn main() {
 mod tests {
     use super::*;
 
+    fn assert_reduce(n: &str, expected: &str) {
+        assert_eq!(
+            n.parse::<Num>().unwrap().reduce(),
+            expected.parse::<Num>().unwrap()
+        );
+    }
+
     #[test]
-    fn test_add() {
-        fn assert_add(a: &str, b: &str, expected: &str) {
-            assert_eq!(
-                a.parse::<Num>().unwrap() + b.parse::<Num>().unwrap(),
-                expected.parse::<Num>().unwrap()
-            );
-        }
+    fn test_reduce_explode() {
+        assert_reduce("[[[[[9,8],1],2],3],4]", "[[[[0,9],2],3],4]");
+        assert_reduce("[7,[6,[5,[4,[3,2]]]]]", "[7,[6,[5,[7,0]]]]");
+        assert_reduce("[[6,[5,[4,[3,2]]]],1]", "[[6,[5,[7,0]]],3]");
+        assert_reduce(
+            "[[3,[2,[1,[7,3]]]],[6,[5,[4,[3,2]]]]]",
+            "[[3,[2,[8,0]]],[9,[5,[7,0]]]]",
+        );
+    }
+
+    #[test]
+    fn test_reduce_split() {
+        assert_eq!(Num::vp(10, 2).reduce(), "[[5, 5], 2]".parse().unwrap());
+        assert_eq!(Num::vp(11, 2).reduce(), "[[5, 6], 2]".parse().unwrap());
+
+        let p = Num::p(Num::vp(10, 2), Num::vp(2, 11));
+        assert_eq!(p.reduce(), "[[[5, 5], 2], [2, [5, 6]]]".parse().unwrap());
+    }
+
+    fn assert_add(a: &str, b: &str, expected: &str) {
+        assert_eq!(
+            a.parse::<Num>().unwrap() + b.parse::<Num>().unwrap(),
+            expected.parse::<Num>().unwrap()
+        );
+    }
+
+    #[test]
+    fn test_add_simple() {
         assert_add("[1, 2]", "[3, 4]", "[[1, 2], [3, 4]]")
+    }
+
+    #[test]
+    fn test_add_reduce() {
+        assert_add("[[[[4,3],4],4],[7,[[8,4],9]]]", "[1, 1]", "[[[[0,7],4],[[7,8],[6,0]]],[8,1]]")
     }
 
     #[test]
@@ -190,5 +333,48 @@ mod tests {
             Num::vp(8, 1),
         );
         assert_eq!(p.mag(), 1384);
+    }
+
+    #[test]
+    fn test_sum() {
+        fn assert_sum(s: &str, expected: &str) {
+            let nums: Vec<Num> = s.lines().map(|l| l.parse().unwrap()).collect();
+            let res: Option<Num> = nums.into_iter().sum();
+            assert_eq!(res.unwrap(), expected.parse().unwrap());
+        }
+
+//        let s = "[1,1]
+//                 [2,2]
+//                 [3,3]
+//                 [4,4]";
+//        assert_sum(s, "[[[[1,1],[2,2]],[3,3]],[4,4]]");
+//
+//        let s = "[1,1]
+//                 [2,2]
+//                 [3,3]
+//                 [4,4]
+//                 [5,5]";
+//        assert_sum(s, "[[[[3,0],[5,3]],[4,4]],[5,5]]");
+//
+//        let s = "[1,1]
+//                 [2,2]
+//                 [3,3]
+//                 [4,4]
+//                 [5,5]
+//                 [6,6]";
+//        assert_sum(s, "[[[[5,0],[7,4]],[5,5]],[6,6]]");
+
+        let s = "[[[0,[4,5]],[0,0]],[[[4,5],[2,6]],[9,5]]]
+                 [7,[[[3,7],[4,3]],[[6,3],[8,8]]]]
+                 [[2,[[0,8],[3,4]]],[[[6,7],1],[7,[1,6]]]]
+                 [[[[2,4],7],[6,[0,5]]],[[[6,8],[2,8]],[[2,1],[4,5]]]]
+                 [7,[5,[[3,8],[1,4]]]]
+                 [[2,[2,2]],[8,[8,1]]]
+                 [2,9]
+                 [1,[[[9,3],9],[[9,0],[0,7]]]]
+                 [[[5,[7,4]],7],1]
+                 [[[[4,2],2],6],[8,7]]";
+
+        assert_sum(s, "[[[[8,7],[7,7]],[[8,6],[7,7]]],[[[0,7],[6,6]],[8,7]]]");
     }
 }
