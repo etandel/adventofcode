@@ -1,9 +1,22 @@
 use std::env;
 use std::fs;
+use std::iter::Sum;
+use std::ops::Add;
 use std::path::Path;
 use std::rc::Rc;
 use std::str::FromStr;
-use std::ops::Add;
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+enum Side {
+    L, R
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+enum Op {
+    // depth, l / r
+    Split(usize, Side),
+    Explode(usize, Side),
+}
 
 type W<T> = Rc<T>;
 type N = u32;
@@ -15,12 +28,23 @@ enum Num {
 }
 
 impl Num {
+    #[allow(dead_code)]
     fn p(l: Self, r: Self) -> Self {
         Self::Pair(W::new(l), W::new(r))
     }
 
+    #[allow(dead_code)]
     fn vp(l: N, r: N) -> Self {
         Self::Pair(W::new(Self::Val(l)), W::new(Self::Val(r)))
+    }
+
+    fn reduce(&self) -> Self {
+        use Num::{Val, Pair};
+
+        let problem = match self {
+            Val(x) if x >= 10 => Split(
+        }
+        self.clone()
     }
 }
 
@@ -28,7 +52,7 @@ impl FromStr for Num {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, <Self as FromStr>::Err> {
-        use Num::{Val, Pair};
+        use Num::{Pair, Val};
 
         let mut stack = Vec::new();
 
@@ -47,11 +71,25 @@ impl FromStr for Num {
     }
 }
 
-impl Add for &Num {
+impl Add for Num {
     type Output = Num;
 
     fn add(self, rhs: Self) -> Self::Output {
-        Num::Pair(W::new(self), W::new(rhs))
+        Num::Pair(W::new(self), W::new(rhs)).reduce()
+    }
+}
+
+impl Sum<Num> for Option<Num> {
+    fn sum<I>(mut i: I) -> Self
+    where
+        I: Iterator<Item=Num>,
+    {
+        match i.next() {
+            Some(first) => {
+                Some(i.fold(first, |a, b| a + b))
+            }
+            None => None,
+        }
     }
 }
 
@@ -66,18 +104,21 @@ impl Num {
     }
 }
 
-
 fn read_input<P>(path: P) -> Vec<Num>
 where
     P: AsRef<Path>,
 {
-    fs::read_to_string(path).unwrap().lines().map(|l| l.parse().unwrap()).collect()
+    fs::read_to_string(path)
+        .unwrap()
+        .lines()
+        .map(|l| l.parse().unwrap())
+        .collect()
 }
 
 fn part1() {
     let nums = read_input("input_example.txt");
-    let res = nums.iter().skip(1).fold(nums[0], |acc, &n| acc + n);
-    println!("{}", res.mag());
+    let res = nums.into_iter().sum::<Option<Num>>().unwrap().mag();
+    println!("{}", res);
 }
 
 fn part2() {
@@ -98,6 +139,15 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_add() {
+        fn assert_add(a: &str, b: &str, expected: &str) {
+            assert_eq!(a.parse::<Num>().unwrap() + b.parse::<Num>().unwrap(), expected.parse::<Num>().unwrap());
+        }
+        assert_add("[1, 2]", "[3, 4]", "[[1, 2], [3, 4]]")
+
+    }
+
+    #[test]
     fn test_from_str() {
         use Num::Val;
 
@@ -116,13 +166,7 @@ mod tests {
         let s = "[[1, 2], [[3, 4], [5, [6, 7]]]]";
         let expected = Num::p(
             Num::vp(1, 2),
-            Num::p(
-                Num::vp(3, 4),
-                Num::p(
-                    Val(5),
-                    Num::vp(6, 7)
-                )
-            )
+            Num::p(Num::vp(3, 4), Num::p(Val(5), Num::vp(6, 7))),
         );
         assert_eq!(s.parse(), Ok(expected));
     }
@@ -131,46 +175,15 @@ mod tests {
     fn test_mag() {
         use Num::Val;
 
-        let p = Num::p(
-            Num::vp(
-                1,
-                2,
-            ),
-            Num::p(
-                Num::vp(
-                    3,
-                    4,
-                ),
-                Val(5),
-            )
-        );
+        let p = Num::p(Num::vp(1, 2), Num::p(Num::vp(3, 4), Val(5)));
         assert_eq!(p.mag(), 143);
 
-
         let p = Num::p(
             Num::p(
-                Num::p(
-                    Num::vp(
-                        0,
-                        7
-                    ),
-                    Val(4),
-                ),
-                    Num::p(
-                        Num::vp(
-                            7,
-                            8
-                        ),
-                        Num::vp(
-                            6,
-                            0
-                        ),
-                    ),
+                Num::p(Num::vp(0, 7), Val(4)),
+                Num::p(Num::vp(7, 8), Num::vp(6, 0)),
             ),
-            Num::vp(
-                8,
-                1,
-            ),
+            Num::vp(8, 1),
         );
         assert_eq!(p.mag(), 1384);
     }
