@@ -1,5 +1,6 @@
 import math
 import sys
+from itertools import batched
 
 
 def part1(file):
@@ -71,7 +72,19 @@ def get_scale(x):
 
 
 def part2(file):
-    pass
+    total = 0
+    for interval in file.read().split(","):
+        first, last = tuple(map(int, interval.split("-")))
+        for i in range(first, last+1):
+            stri = str(i)
+            for l in range(1, len(stri) // 2 + 1):
+                cand = set(batched(stri, l))
+                if len(cand) == 1:
+                    total += i
+                    break
+
+
+    print(total)
 
 
 def main():
