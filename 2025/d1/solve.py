@@ -49,7 +49,7 @@ def part2(file):
         should_add = (
             (state < state_before and direction == "R" and state_before != 0) or
             (state > state_before and direction == "L" and state_before != 0) or
-            state == 0
+            state == 0 and val != 0
         )
         if should_add:
             count += 1
